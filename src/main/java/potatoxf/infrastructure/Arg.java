@@ -212,7 +212,7 @@ public final class Arg {
         return Arg.isPeriphery(input, ele) && input.contains(ele);
     }
 
-    public static boolean isMatch(String input, IntPredicate charMatch) {
+    public static boolean isMatchCodepoint(String input, IntPredicate charMatch) {
         int[] array = input.codePoints().toArray();
         for (int c : array) {
             if (!charMatch.test(c)) {
@@ -220,6 +220,92 @@ public final class Arg {
             }
         }
         return true;
+    }
+
+    /**
+     * 检查字符串是否与指定的通配符匹配器匹配，
+     * <p>
+     * 通配符匹配器使用字符 '?' 和 '*' 来表示单个或多个（零个或多个）通配符。
+     *
+     * @param input         输入字符串
+     * @param wildcardMatch 匹配通配符模式
+     * @param ignoreCase    是否区分大小写
+     * @return 如果匹配返回true，否则返回false
+     */
+    public static boolean isMatchWildcard(String input, String wildcardMatch, boolean ignoreCase) {
+        if (wildcardMatch == null || wildcardMatch.isEmpty() || input == null || input.isEmpty()) return false;
+        StringBuilder patternBuffer = new StringBuilder();
+        int inputLength = input.length(), patternLength = wildcardMatch.length(), questionCount = 0, multiplyCount = 0;
+        boolean preMultiply = false, hasNormal = false;
+        char pc, ic;
+        for (int i = 0; i < patternLength; i++) {
+            pc = wildcardMatch.charAt(i);
+            if (pc != '*') {
+                patternBuffer.append(pc);
+                preMultiply = false;
+                if (pc != '?') hasNormal = true;
+                else questionCount++;
+            } else if (!preMultiply) {
+                patternBuffer.append(pc);
+                preMultiply = true;
+                multiplyCount++;
+            }
+        }
+        if (!hasNormal) {
+            return questionCount == 0 || (multiplyCount > 0 ? inputLength >= questionCount : inputLength == questionCount);
+        }
+        patternLength = patternBuffer.length();
+        if (questionCount == 0 && multiplyCount == 0) {
+            if (inputLength != patternLength) return false;
+            for (int i = 0; i < inputLength; i++) {
+                if (!Arg.isEqualChar(input.charAt(i), patternBuffer.charAt(i), ignoreCase)) return false;
+            }
+            return true;
+        } else if (multiplyCount == 0) {
+            if (inputLength != patternLength) return false;
+            for (int i = 0; i < inputLength; i++) {
+                if ((pc = patternBuffer.charAt(i)) != '?' && !Arg.isEqualChar(input.charAt(i), pc, ignoreCase))
+                    return false;
+            }
+            return true;
+        } else {
+            int si = 0, pi = 0, i;
+            String[] ps = new String[multiplyCount + 1];
+            if (patternBuffer.charAt(0) == '*') {
+                ps[pi++] = "";
+                si = 1;
+            }
+            for (i = pi; i < patternLength; i++) {
+                if (patternBuffer.charAt(i) != '*') continue;
+                ps[pi++] = patternBuffer.substring(si, i);
+                si = i + 1;
+            }
+            if (si >= patternLength) ps[pi] = "";
+            else ps[pi] = patternBuffer.substring(si);
+            int[] pcs = new int[ps.length];
+            pcs[pcs.length - 1] = ps[pcs.length - 1].length();
+            for (i = pcs.length - 2; i >= 0; i--) pcs[i] = pcs[i + 1] + ps[i].length();
+            if (inputLength < pcs[0]) return false;
+            final int s = ps[0].isEmpty() ? 1 : 0, e = ps.length - (ps[ps.length - 1].isEmpty() ? 1 : 0);
+            for (si = 0, i = s; i < e; ) {
+                int ii = 0;
+                for (pi = 0; pi < ps[i].length(); pi++) {
+                    if (si + ii >= inputLength) return false;//模式未完全匹配，已到字符串末尾
+                    ic = input.charAt(si + ii);
+                    pc = ps[i].charAt(pi);
+                    if (pc != '?' && !Arg.isEqualChar(ic, pc, ignoreCase)) break;
+                    ii++;
+                }
+                if (pi < ps[i].length()) {//模式匹配失败
+                    if (inputLength - si - 1 < pcs[i]) return false;//剩余字符串长度，不满足模式匹配长度
+                    si++;
+                } else {
+                    si += ii;
+                    i++;
+                }
+            }
+            return e != ps.length || si == inputLength;
+        }
     }
 
     public static boolean isNoNegative(long input) {
@@ -356,10 +442,16 @@ public final class Arg {
         return null != clazz && !clazz.isPrimitive() && BASIC_TYPE_INFO.containsKey(clazz);
     }
 
+    /**
+     * 判断 {@code fromClass}是{@code inputClass}或接口，
+     *
+     * @param inputClass 要判断的类型，不允许为null
+     * @param fromClass  是否兼容父级类型，不允许为null
+     * @return 如果兼容返回true，否则返回false
+     */
     public static boolean isImplementsFrom(Class<?> inputClass, Class<?> fromClass) {
         return inputClass != fromClass && fromClass.isAssignableFrom(inputClass);
     }
-
 
     /**
      * 判断{@code matchClass}是否兼容{@code inputClass}，
