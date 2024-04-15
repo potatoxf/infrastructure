@@ -112,7 +112,12 @@ public final class Arg {
         if (input.isPrimitive()) {
             if (wrap) r = BASIC_TYPE_INFO.getOrDefault(input, NULL_BASIC_TYPE).toType;
         } else {
-            if (!wrap) r = BASIC_TYPE_INFO.getOrDefault(input, NULL_BASIC_TYPE).toType;
+            if (!wrap) {
+                r = BASIC_TYPE_INFO.getOrDefault(input, NULL_BASIC_TYPE).toType;
+                if (r == null && Log.isEnabledDebug()) {
+                    Log.debug("Not a known primitive wrapper class: " + input);
+                }
+            }
         }
         if (r == null) r = input;
         return r;
@@ -454,42 +459,42 @@ public final class Arg {
     }
 
     /**
-     * 判断{@code matchClass}是否兼容{@code inputClass}，
-     * {@code matchClass}是{@code inputClass}或接口，
-     * 或{@code matchClass}是{@code inputClass}或更大的基本类型
+     * 判断{@code fromClass}是否兼容{@code inputClass}，
+     * {@code fromClass}是{@code inputClass}或接口，
+     * 或{@code fromClass}是{@code inputClass}或更大的基本类型
      *
      * @param inputClass 要判断的类型，允许为null
-     * @param matchClass 是否兼容父级类型，不允许为null
+     * @param fromClass  是否兼容父级类型，不允许为null
      * @return 如果兼容返回true，否则返回false
      */
-    public static boolean isCompatibilityFrom(Class<?> inputClass, Class<?> matchClass) {
-        if (matchClass == null) throw new IllegalArgumentException("The match class must no null");
-        if (inputClass == matchClass || inputClass == null) return true;
+    public static boolean isCompatibilityFrom(Class<?> inputClass, Class<?> fromClass) {
+        if (fromClass == null) throw new IllegalArgumentException("The match class must no null");
+        if (inputClass == fromClass || inputClass == null) return true;
         boolean inputArray = inputClass.isArray();
-        boolean matchArray = matchClass.isArray();
+        boolean matchArray = fromClass.isArray();
         if (inputArray && matchArray) {
-            return matchClass.isAssignableFrom(inputClass);
+            return fromClass.isAssignableFrom(inputClass);
         } else if (inputArray || matchArray) {
             return false;
         } else {
-            boolean matchPrimitive = matchClass.isPrimitive();
+            boolean matchPrimitive = fromClass.isPrimitive();
             boolean inputPrimitive = inputClass.isPrimitive();
             if (matchPrimitive) {
-                int matchCompatibility = BASIC_TYPE_INFO.get(matchClass).level;
+                int matchCompatibility = BASIC_TYPE_INFO.get(fromClass).level;
                 int inputCompatibility = BASIC_TYPE_INFO.getOrDefault(inputClass, NULL_BASIC_TYPE).level;
                 if (inputCompatibility < 0) return false;
                 if (inputCompatibility > 0 && matchCompatibility > 0) {
                     return matchCompatibility >= inputCompatibility;//匹配类型是原生类型的兼容性
                 } else if (inputCompatibility == 0 && matchCompatibility == 0) {
-                    if (inputPrimitive) return matchClass == inputClass;
-                    else if (inputClass == CLASS_WZ && matchClass == CLASS_Z) return true;
-                    else return inputClass == CLASS_WC && matchClass == CLASS_C;
+                    if (inputPrimitive) return fromClass == inputClass;
+                    else if (inputClass == CLASS_WZ && fromClass == CLASS_Z) return true;
+                    else return inputClass == CLASS_WC && fromClass == CLASS_C;
                 }
                 return false;
             } else if (inputPrimitive) {
-                return matchClass.isAssignableFrom(BASIC_TYPE_INFO.get(inputClass).toType);
+                return fromClass.isAssignableFrom(BASIC_TYPE_INFO.get(inputClass).toType);
             } else {
-                return matchClass.isAssignableFrom(inputClass);
+                return fromClass.isAssignableFrom(inputClass);
             }
         }
     }
