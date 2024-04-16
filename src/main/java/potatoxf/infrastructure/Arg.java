@@ -209,15 +209,70 @@ public final class Arg {
         return true;
     }
 
-    public static boolean isPeriphery(String input, String ele) {
-        return input != null && ele != null && ele.length() <= input.length() && !ele.isEmpty();
+    public static boolean isPeriphery(CharSequence input, CharSequence other) {
+        return input != null && other != null && other.length() <= input.length() && other.length() != 0;
     }
 
-    public static boolean isContain(String input, String ele) {
-        return Arg.isPeriphery(input, ele) && input.contains(ele);
+    public static boolean isContain(CharSequence input, CharSequence other) {
+        if (!Arg.isPeriphery(input, other)) return false;
+        int inputLen = input.length(), subLen = other.length();
+        int len = inputLen - subLen;
+        for (int i = 0; i < len; i++) {
+            if (Arg.isMatchRegion(false, input, i, other, 0, subLen)) {
+                return true;
+            }
+        }
+        return false;
     }
 
-    public static boolean isMatchCodepoint(String input, IntPredicate charMatch) {
+    public static boolean isEquals(CharSequence input, CharSequence other) {
+        if (input == other) {
+            return true;
+        }
+        if (input == null || other == null) {
+            return false;
+        }
+        if (input instanceof String && other instanceof String) {
+            return input.equals(other);
+        }
+        return input.length() == other.length() && Arg.isMatchRegion(false, input, 0, other, 0, input.length());
+    }
+
+    /**
+     * 测试两个字符串区域是否相等。
+     *
+     * @param ignoreCase  是否忽略大小写
+     * @param input       输入字符串
+     * @param inputOffset 输入字符串偏移量
+     * @param other       匹配字符串
+     * @param otherOffset 匹配字符串偏移
+     * @param length      要比对字符串长度
+     * @return 如果此字符串的指定子区域与字符串参数的指定子区域完全匹配返回true，否则返回false
+     * @see String#regionMatches(boolean, int, String, int, int)
+     */
+    public static boolean isMatchRegion(boolean ignoreCase, CharSequence input, int inputOffset, CharSequence other, int otherOffset, int length) {
+        if (input instanceof String && other instanceof String) {
+            return ((String) input).regionMatches(ignoreCase, inputOffset, (String) other, otherOffset, length);
+        }
+        int i1 = inputOffset, i2 = otherOffset;
+        int tmpLen = length;
+
+        while (tmpLen-- > 0) {
+            char c1 = input.charAt(i1++), c2 = other.charAt(i2++);
+            if (c1 == c2) continue;
+            if (!ignoreCase) return false;
+
+            // The same check as in String.regionMatches():
+            if (Character.toUpperCase(c1) != Character.toUpperCase(c2) &&
+                    Character.toLowerCase(c1) != Character.toLowerCase(c2)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public static boolean isMatchCodepoint(CharSequence input, IntPredicate charMatch) {
         int[] array = input.codePoints().toArray();
         for (int c : array) {
             if (!charMatch.test(c)) {
@@ -232,19 +287,21 @@ public final class Arg {
      * <p>
      * 通配符匹配器使用字符 '?' 和 '*' 来表示单个或多个（零个或多个）通配符。
      *
-     * @param input         输入字符串
-     * @param wildcardMatch 匹配通配符模式
-     * @param ignoreCase    是否区分大小写
+     * @param input        输入字符串
+     * @param patternMatch 匹配通配符模式
+     * @param ignoreCase   是否区分大小写
      * @return 如果匹配返回true，否则返回false
      */
-    public static boolean isMatchWildcard(String input, String wildcardMatch, boolean ignoreCase) {
-        if (wildcardMatch == null || wildcardMatch.isEmpty() || input == null || input.isEmpty()) return false;
+    public static boolean isMatchWildcard(CharSequence input, CharSequence patternMatch, boolean ignoreCase) {
+        if (input == null || patternMatch == null) return false;
+        int inputLength = input.length(), patternLength = patternMatch.length();
+        if (inputLength == 0 || patternLength == 0) return false;
         StringBuilder patternBuffer = new StringBuilder();
-        int inputLength = input.length(), patternLength = wildcardMatch.length(), questionCount = 0, multiplyCount = 0;
+        int questionCount = 0, multiplyCount = 0;
         boolean preMultiply = false, hasNormal = false;
         char pc, ic;
         for (int i = 0; i < patternLength; i++) {
-            pc = wildcardMatch.charAt(i);
+            pc = patternMatch.charAt(i);
             if (pc != '*') {
                 patternBuffer.append(pc);
                 preMultiply = false;
