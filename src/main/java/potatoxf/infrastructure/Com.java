@@ -115,7 +115,7 @@ public final class Com {
      * @param cause     异常原因
      * @return 如果初始化返回true，否则返回false
      */
-    public static boolean initCause(Throwable exception, Throwable cause) {
+    public static boolean initExceptionCause(Throwable exception, Throwable cause) {
         if (INIT_CAUSE_METHOD != null && cause != null) {
             try {
                 INIT_CAUSE_METHOD.invoke(exception, cause);
@@ -134,7 +134,7 @@ public final class Com {
      * @param detailMessage 异常信心
      * @return 如果初始化返回true，否则返回false
      */
-    public static boolean initDetailMessage(Throwable exception, String detailMessage) {
+    public static boolean initExceptionMessage(Throwable exception, String detailMessage) {
         if (DETAIL_MESSAGE_FIELD != null && detailMessage != null) {
             try {
                 DETAIL_MESSAGE_FIELD.set(exception, detailMessage);
