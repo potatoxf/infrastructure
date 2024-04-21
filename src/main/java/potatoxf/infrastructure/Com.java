@@ -55,18 +55,57 @@ public final class Com {
 
     }
 
-    public static boolean isVulnerableJVM() {
-        boolean vulnerableJVM = false;
-        try {
-            final String specVersion = System.getProperty("java.specification.version");
-            if (specVersion.charAt(0) == '1' && (specVersion.charAt(2) == '0' || specVersion.charAt(2) == '1' || specVersion.charAt(2) == '2' || specVersion.charAt(2) == '3')) {
-                vulnerableJVM = true;
+    /**
+     * 生成填充类属性类
+     *
+     * @param start 开始索引
+     * @param bytes 生成字节数
+     * @return 返回字符串
+     */
+    public static String generateClassPadding(int start, int bytes) {
+        start = Math.max(start, 0);
+        bytes = Math.max(bytes, 4);
+        int c = 0;
+        for (int j = start + bytes - 1; j != 0; j /= 10) c++;
+        c = Math.max(3, c);
+        StringBuilder stringBuilder = new StringBuilder(17 * bytes);
+        for (int i = 0; i < bytes; i++) {
+            if ((i % 4) == 0) {
+                stringBuilder.append("byte ");
             }
-        } catch (final SecurityException e) {
-            // don't know - so display warning
-            vulnerableJVM = true;
+            stringBuilder.append(String.format("__padding_%0" + c + "d", start + i));
+
+            if ((i + 1) % 4 == 0) {
+                stringBuilder.append(";\n");
+            } else {
+                stringBuilder.append(", ");
+            }
         }
-        return vulnerableJVM;
+        return stringBuilder.toString();
+    }
+
+    /**
+     * 判断JDK版本
+     *
+     * @return 判断是否是1.4之前的JVM
+     */
+    public static boolean isMatchJVM(int integer, int decimal, boolean before, boolean includeEquals) {
+        integer = Math.max(integer, 1);
+        decimal = Math.max(decimal, 0);
+        final String specVersion = System.getProperty("java.specification.version");
+        int i = specVersion.indexOf('.');
+        int specVersionInteger, specVersionDecimal = 0;
+        if (i >= 0) {
+            specVersionInteger = Integer.parseInt(specVersion.substring(0, i));
+            specVersionDecimal = Integer.parseInt(specVersion.substring(i + 1));
+        } else {
+            specVersionInteger = Integer.parseInt(specVersion);
+        }
+        if (specVersionInteger < integer) return before;
+        if (specVersionInteger > integer) return !before;
+        if (specVersionDecimal < decimal) return before;
+        if (specVersionDecimal > decimal) return !before;
+        return includeEquals;
     }
 
     /**
