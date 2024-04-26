@@ -462,7 +462,10 @@ public final class Log {
             String s = String.format("[%s] [%-5s] %s: %s", OffsetDateTime.now(), lv, ste, message);
             if (lv == Lv.ERROR) System.err.println(s);
             else System.out.println(s);
-            if (throwable != null) throwable.printStackTrace(System.err);
+            if (throwable != null) {
+                if (lv == Lv.ERROR) throwable.printStackTrace(System.err);
+                else throwable.printStackTrace(System.out);
+            }
         }
     }
 
@@ -649,7 +652,13 @@ public final class Log {
                 args = new Object[0];
             }
             try {
-                factory.log(logger, lv, ste, messageTemplate == null ? "" : String.format(messageTemplate, args), throwable);
+                String message = messageTemplate;
+                if (args.length != 0) {
+                    message = String.format(messageTemplate, args);
+                } else if (message == null) {
+                    message = "";
+                }
+                factory.log(logger, lv, ste, message, throwable);
             } catch (Throwable e) {
                 e.printStackTrace(System.out);
             }
