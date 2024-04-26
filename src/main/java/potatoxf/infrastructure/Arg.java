@@ -1,16 +1,19 @@
 package potatoxf.infrastructure;
 
 import java.io.File;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.text.NumberFormat;
+import java.text.ParseException;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.temporal.TemporalAccessor;
 import java.util.*;
-import java.util.function.IntFunction;
-import java.util.function.IntPredicate;
-import java.util.function.Supplier;
+import java.util.concurrent.TimeUnit;
+import java.util.function.*;
 
 /**
  * 参数工具类
@@ -65,26 +68,26 @@ public final class Arg {
     public static final float DEFAULT_F = 0F;
     public static final double DEFAULT_D = 0D;
     private static final Map<Class<?>, BasicType> BASIC_TYPE_INFO;
-    private static final BasicType NULL_BASIC_TYPE = new BasicType(-1, null, null);
+    private static final BasicType NULL_BASIC_TYPE = new BasicType(-1, null, null, null);
 
     static {
         Map<Class<?>, BasicType> basicTypeInfo = new HashMap<>(16, 1);
-        basicTypeInfo.put(CLASS_Z, new BasicType(0, CLASS_WZ, DEFAULT_Z));
-        basicTypeInfo.put(CLASS_WZ, new BasicType(0, CLASS_Z, DEFAULT_Z));
-        basicTypeInfo.put(CLASS_C, new BasicType(0, CLASS_WC, DEFAULT_C));
-        basicTypeInfo.put(CLASS_WC, new BasicType(0, CLASS_C, DEFAULT_C));
-        basicTypeInfo.put(CLASS_B, new BasicType(1, CLASS_WB, DEFAULT_B));
-        basicTypeInfo.put(CLASS_WB, new BasicType(1, CLASS_B, DEFAULT_B));
-        basicTypeInfo.put(CLASS_S, new BasicType(2, CLASS_WS, DEFAULT_S));
-        basicTypeInfo.put(CLASS_WS, new BasicType(2, CLASS_S, DEFAULT_S));
-        basicTypeInfo.put(CLASS_I, new BasicType(3, CLASS_WI, DEFAULT_I));
-        basicTypeInfo.put(CLASS_WI, new BasicType(3, CLASS_I, DEFAULT_I));
-        basicTypeInfo.put(CLASS_J, new BasicType(4, CLASS_WJ, DEFAULT_J));
-        basicTypeInfo.put(CLASS_WJ, new BasicType(4, CLASS_J, DEFAULT_J));
-        basicTypeInfo.put(CLASS_F, new BasicType(5, CLASS_WF, DEFAULT_F));
-        basicTypeInfo.put(CLASS_WF, new BasicType(5, CLASS_F, DEFAULT_F));
-        basicTypeInfo.put(CLASS_D, new BasicType(6, CLASS_WD, DEFAULT_D));
-        basicTypeInfo.put(CLASS_WD, new BasicType(6, CLASS_D, DEFAULT_D));
+        basicTypeInfo.put(CLASS_Z, new BasicType(0, CLASS_WZ, DEFAULT_Z, Boolean::parseBoolean));
+        basicTypeInfo.put(CLASS_WZ, new BasicType(0, CLASS_Z, DEFAULT_Z, Boolean::parseBoolean));
+        basicTypeInfo.put(CLASS_C, new BasicType(0, CLASS_WC, DEFAULT_C, s -> s.isEmpty() ? '\0' : s.charAt(0)));
+        basicTypeInfo.put(CLASS_WC, new BasicType(0, CLASS_C, DEFAULT_C, s -> s.isEmpty() ? '\0' : s.charAt(0)));
+        basicTypeInfo.put(CLASS_B, new BasicType(1, CLASS_WB, DEFAULT_B, Byte::parseByte));
+        basicTypeInfo.put(CLASS_WB, new BasicType(1, CLASS_B, DEFAULT_B, Byte::parseByte));
+        basicTypeInfo.put(CLASS_S, new BasicType(2, CLASS_WS, DEFAULT_S, Short::parseShort));
+        basicTypeInfo.put(CLASS_WS, new BasicType(2, CLASS_S, DEFAULT_S, Short::parseShort));
+        basicTypeInfo.put(CLASS_I, new BasicType(3, CLASS_WI, DEFAULT_I, Integer::parseInt));
+        basicTypeInfo.put(CLASS_WI, new BasicType(3, CLASS_I, DEFAULT_I, Integer::parseInt));
+        basicTypeInfo.put(CLASS_J, new BasicType(4, CLASS_WJ, DEFAULT_J, Long::parseLong));
+        basicTypeInfo.put(CLASS_WJ, new BasicType(4, CLASS_J, DEFAULT_J, Long::parseLong));
+        basicTypeInfo.put(CLASS_F, new BasicType(5, CLASS_WF, DEFAULT_F, Float::parseFloat));
+        basicTypeInfo.put(CLASS_WF, new BasicType(5, CLASS_F, DEFAULT_F, Float::parseFloat));
+        basicTypeInfo.put(CLASS_D, new BasicType(6, CLASS_WD, DEFAULT_D, Double::parseDouble));
+        basicTypeInfo.put(CLASS_WD, new BasicType(6, CLASS_D, DEFAULT_D, Double::parseDouble));
         BASIC_TYPE_INFO = Collections.unmodifiableMap(basicTypeInfo);
     }
 
@@ -92,11 +95,19 @@ public final class Arg {
         private final int level;
         private final Class<?> toType;
         private final Object defaultValue;
+        private final BiFunction<String, String, Object> converter;
 
-        private BasicType(int level, Class<?> toType, Object defaultValue) {
+        private BasicType(int level, Class<?> toType, Object defaultValue, Function<String, Object> converter) {
             this.level = level;
             this.toType = toType;
             this.defaultValue = defaultValue;
+            this.converter = converter == null ? null : (value, main) -> {
+                try {
+                    return converter.apply(value);
+                } catch (Throwable e) {
+                    throw new IllegalArgumentException(String.format("The '%s' value was set to '%s', must be an %s", main, value, BASIC_TYPE_INFO.get(toType).toType.getTypeName()), e);
+                }
+            };
         }
     }
 
@@ -263,8 +274,7 @@ public final class Arg {
             if (!ignoreCase) return false;
 
             // The same check as in String.regionMatches():
-            if (Character.toUpperCase(c1) != Character.toUpperCase(c2) &&
-                    Character.toLowerCase(c1) != Character.toLowerCase(c2)) {
+            if (Character.toUpperCase(c1) != Character.toUpperCase(c2) && Character.toLowerCase(c1) != Character.toLowerCase(c2)) {
                 return false;
             }
         }
@@ -387,10 +397,7 @@ public final class Arg {
     }
 
     public static boolean isBlankChar(int input) {
-        return Character.isWhitespace(input)
-                || Character.isSpaceChar(input)
-                || input == '\ufeff'
-                || input == '\u202a';
+        return Character.isWhitespace(input) || Character.isSpaceChar(input) || input == '\ufeff' || input == '\u202a';
     }
 
     public static boolean isAsciiChar(int input) {
@@ -577,21 +584,66 @@ public final class Arg {
         return true;
     }
 
-    public static <T> T check(boolean success, T input) {
+    public static void checkState(boolean success) {
+        Arg.checkAndReturn(success, null);
+    }
+
+    public static void checkState(boolean success, String messageTemplate, Object... args) {
+        Arg.checkAndReturn(success, null, messageTemplate, args);
+    }
+
+    public static void checkState(boolean success, Supplier<String> messageSupplier) {
+        Arg.checkAndReturn(success, null, messageSupplier);
+    }
+
+    public static <T> T checkStateAndReturn(boolean success, T input) {
+        if (!success) {
+            throw new IllegalStateException();
+        }
+        return input;
+    }
+
+    public static <T> T checkStateAndReturn(boolean success, T input, String messageTemplate, Object... args) {
+        if (!success) {
+            throw new IllegalStateException(String.format(messageTemplate, args));
+        }
+        return input;
+    }
+
+    public static <T> T checkStateAndReturn(boolean success, T input, Supplier<String> messageSupplier) {
+        if (!success) {
+            throw new IllegalStateException(messageSupplier.get());
+        }
+        return input;
+    }
+
+    public static void check(boolean success) {
+        Arg.checkAndReturn(success, null);
+    }
+
+    public static void check(boolean success, String messageTemplate, Object... args) {
+        Arg.checkAndReturn(success, null, messageTemplate, args);
+    }
+
+    public static void check(boolean success, Supplier<String> messageSupplier) {
+        Arg.checkAndReturn(success, null, messageSupplier);
+    }
+
+    public static <T> T checkAndReturn(boolean success, T input) {
         if (!success) {
             throw new IllegalArgumentException();
         }
         return input;
     }
 
-    public static <T> T check(boolean success, T input, String messageTemplate, Object... args) {
+    public static <T> T checkAndReturn(boolean success, T input, String messageTemplate, Object... args) {
         if (!success) {
             throw new IllegalArgumentException(String.format(messageTemplate, args));
         }
         return input;
     }
 
-    public static <T> T check(boolean success, T input, Supplier<String> messageSupplier) {
+    public static <T> T checkAndReturn(boolean success, T input, Supplier<String> messageSupplier) {
         if (!success) {
             throw new IllegalArgumentException(messageSupplier.get());
         }
@@ -599,15 +651,15 @@ public final class Arg {
     }
 
     public static <T> T checkNoNull(T input) {
-        return Arg.check(Arg.isNoNull(input), input, "The input value must be not null");
+        return Arg.checkAndReturn(Arg.isNoNull(input), input, "The input value must be not null");
     }
 
     public static <T> T checkNoNull(T input, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isNoNull(input), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isNoNull(input), input, messageTemplate, args);
     }
 
     public static <T> T checkNoNull(T input, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isNoNull(input), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isNoNull(input), input, messageSupplier);
     }
 
     public static void checkNoNull(Object input, Object other) {
@@ -615,203 +667,203 @@ public final class Arg {
     }
 
     public static void checkNoNull(Object input, Object other, String messageTemplate, Object... args) {
-        Arg.check(Arg.isNoNull(input, other), null, messageTemplate, args);
+        Arg.checkAndReturn(Arg.isNoNull(input, other), null, messageTemplate, args);
     }
 
     public static void checkNoNull(Object input, Object other, Supplier<String> messageSupplier) {
-        Arg.check(Arg.isNoNull(input, other), null, messageSupplier);
+        Arg.checkAndReturn(Arg.isNoNull(input, other), null, messageSupplier);
     }
 
     public static <T extends CharSequence> T checkNoEmpty(T input) {
-        return Arg.check(Arg.isNoEmpty(input), input, "The input value must be not empty");
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, "The input value must be not empty");
     }
 
     public static <T extends CharSequence> T checkNoEmpty(T input, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isNoEmpty(input), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, messageTemplate, args);
     }
 
     public static <T extends CharSequence> T checkNoEmpty(T input, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isNoEmpty(input), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, messageSupplier);
     }
 
     public static <E, T extends Collection<E>> T checkNoEmpty(T input) {
-        return Arg.check(Arg.isNoEmpty(input), input, "The input value must be not empty");
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, "The input value must be not empty");
     }
 
     public static <E, T extends Collection<E>> T checkNoEmpty(T input, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isNoEmpty(input), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, messageTemplate, args);
     }
 
     public static <E, T extends Collection<E>> T checkNoEmpty(T input, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isNoEmpty(input), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, messageSupplier);
     }
 
     public static <T> T[] checkNoEmpty(T[] input) {
-        return Arg.check(Arg.isNoEmpty(input), input, "The input value must be not empty");
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, "The input value must be not empty");
     }
 
     public static <T> T[] checkNoEmpty(T[] input, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isNoEmpty(input), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, messageTemplate, args);
     }
 
     public static <T> T[] checkNoEmpty(T[] input, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isNoEmpty(input), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, messageSupplier);
     }
 
     public static boolean[] checkNoEmpty(boolean[] input) {
-        return Arg.check(Arg.isNoEmpty(input), input, "The input value must be not empty");
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, "The input value must be not empty");
     }
 
     public static boolean[] checkNoEmpty(boolean[] input, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isNoEmpty(input), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, messageTemplate, args);
     }
 
     public static boolean[] checkNoEmpty(boolean[] input, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isNoEmpty(input), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, messageSupplier);
     }
 
     public static char[] checkNoEmpty(char[] input) {
-        return Arg.check(Arg.isNoEmpty(input), input, "The input value must be not empty");
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, "The input value must be not empty");
     }
 
     public static char[] checkNoEmpty(char[] input, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isNoEmpty(input), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, messageTemplate, args);
     }
 
     public static char[] checkNoEmpty(char[] input, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isNoEmpty(input), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, messageSupplier);
     }
 
     public static byte[] checkNoEmpty(byte[] input) {
-        return Arg.check(Arg.isNoEmpty(input), input, "The input value must be not empty");
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, "The input value must be not empty");
     }
 
     public static byte[] checkNoEmpty(byte[] input, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isNoEmpty(input), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, messageTemplate, args);
     }
 
     public static byte[] checkNoEmpty(byte[] input, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isNoEmpty(input), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, messageSupplier);
     }
 
     public static short[] checkNoEmpty(short[] input) {
-        return Arg.check(Arg.isNoEmpty(input), input, "The input value must be not empty");
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, "The input value must be not empty");
     }
 
     public static short[] checkNoEmpty(short[] input, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isNoEmpty(input), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, messageTemplate, args);
     }
 
     public static short[] checkNoEmpty(short[] input, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isNoEmpty(input), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, messageSupplier);
     }
 
     public static int[] checkNoEmpty(int[] input) {
-        return Arg.check(Arg.isNoEmpty(input), input, "The input value must be not empty");
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, "The input value must be not empty");
     }
 
     public static int[] checkNoEmpty(int[] input, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isNoEmpty(input), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, messageTemplate, args);
     }
 
     public static int[] checkNoEmpty(int[] input, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isNoEmpty(input), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, messageSupplier);
     }
 
     public static long[] checkNoEmpty(long[] input) {
-        return Arg.check(Arg.isNoEmpty(input), input, "The input value must be not empty");
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, "The input value must be not empty");
     }
 
     public static long[] checkNoEmpty(long[] input, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isNoEmpty(input), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, messageTemplate, args);
     }
 
     public static long[] checkNoEmpty(long[] input, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isNoEmpty(input), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, messageSupplier);
     }
 
     public static float[] checkNoEmpty(float[] input) {
-        return Arg.check(Arg.isNoEmpty(input), input, "The input value must be not empty");
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, "The input value must be not empty");
     }
 
     public static float[] checkNoEmpty(float[] input, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isNoEmpty(input), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, messageTemplate, args);
     }
 
     public static float[] checkNoEmpty(float[] input, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isNoEmpty(input), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, messageSupplier);
     }
 
     public static double[] checkNoEmpty(double[] input) {
-        return Arg.check(Arg.isNoEmpty(input), input, "The input value must be not empty");
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, "The input value must be not empty");
     }
 
     public static double[] checkNoEmpty(double[] input, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isNoEmpty(input), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, messageTemplate, args);
     }
 
     public static double[] checkNoEmpty(double[] input, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isNoEmpty(input), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isNoEmpty(input), input, messageSupplier);
     }
 
     public static <E, T extends Collection<E>> T checkElementsNoNull(T input) {
-        return Arg.check(Arg.isElementsNoNull(input), input, "The input collection value must be not null");
+        return Arg.checkAndReturn(Arg.isElementsNoNull(input), input, "The input collection value must be not null");
     }
 
     public static <E, T extends Collection<E>> T checkElementsNoNull(T input, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isElementsNoNull(input), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isElementsNoNull(input), input, messageTemplate, args);
     }
 
     public static <E, T extends Collection<E>> T checkElementsNoNull(T input, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isElementsNoNull(input), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isElementsNoNull(input), input, messageSupplier);
     }
 
     public static <E> E[] checkElementsNoNull(E[] input) {
-        return Arg.check(Arg.isElementsNoNull(input), input, "The input array value must be not null");
+        return Arg.checkAndReturn(Arg.isElementsNoNull(input), input, "The input array value must be not null");
     }
 
     public static <E> E[] checkElementsNoNull(E[] input, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isElementsNoNull(input), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isElementsNoNull(input), input, messageTemplate, args);
     }
 
     public static <E> E[] checkElementsNoNull(E[] input, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isElementsNoNull(input), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isElementsNoNull(input), input, messageSupplier);
     }
 
     public static <T extends Collection<? extends CharSequence>> T checkElementsNoEmpty(T input) {
-        return Arg.check(Arg.isElementsNoEmpty(input), input, "The input array value must be not empty");
+        return Arg.checkAndReturn(Arg.isElementsNoEmpty(input), input, "The input array value must be not empty");
     }
 
     public static <T extends Collection<? extends CharSequence>> T checkElementsNoEmpty(T input, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isElementsNoEmpty(input), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isElementsNoEmpty(input), input, messageTemplate, args);
     }
 
     public static <T extends Collection<? extends CharSequence>> T checkElementsNoEmpty(T input, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isElementsNoEmpty(input), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isElementsNoEmpty(input), input, messageSupplier);
     }
 
     public static <E extends CharSequence> E[] checkElementsNoEmpty(E[] input) {
-        return Arg.check(Arg.isElementsNoEmpty(input), input, "The input array value must be not empty");
+        return Arg.checkAndReturn(Arg.isElementsNoEmpty(input), input, "The input array value must be not empty");
     }
 
     public static <E extends CharSequence> E[] checkElementsNoEmpty(E[] input, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isElementsNoEmpty(input), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isElementsNoEmpty(input), input, messageTemplate, args);
     }
 
     public static <E extends CharSequence> E[] checkElementsNoEmpty(E[] input, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isElementsNoEmpty(input), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isElementsNoEmpty(input), input, messageSupplier);
     }
 
     public static void checkContain(String input, String ele) {
-        Arg.check(Arg.isContain(input, ele), null, "The substring '%s' is not in the string '%s'", ele, input);
+        Arg.check(Arg.isContain(input, ele), "The substring '%s' is not in the string '%s'", ele, input);
     }
 
     public static void checkContain(String input, String ele, String messageTemplate, Object... args) {
-        Arg.check(Arg.isContain(input, ele), null, messageTemplate, args);
+        Arg.checkAndReturn(Arg.isContain(input, ele), null, messageTemplate, args);
     }
 
     public static void checkContain(String input, String ele, Supplier<String> messageSupplier) {
-        Arg.check(Arg.isContain(input, ele), null, messageSupplier);
+        Arg.checkAndReturn(Arg.isContain(input, ele), null, messageSupplier);
     }
 
     public static <T extends CharSequence> T checkMatch(T input, IntPredicate charMatch) {
@@ -829,208 +881,208 @@ public final class Arg {
     }
 
     public static void checkElementIndex(int index, int size) {
-        Arg.check(index >= 0 && index < size, null, "The index must be 0<=index(%d)x<size(%d)", index, size);
+        Arg.check(index >= 0 && index < size, "The index must be 0<=index(%d)x<size(%d)", index, size);
     }
 
     public static void checkElementIndex(int start, int end, int size) {
-        Arg.check(start <= end && start >= 0 && end < size, null, "The index must be 0<=start(%d)<=end(%d)<size(%d)", start, end, size);
+        Arg.check(start <= end && start >= 0 && end < size, "The index must be 0<=start(%d)<=end(%d)<size(%d)", start, end, size);
 
     }
 
     public static Duration checkNoNegative(Duration input) {
-        return Arg.check(input != null && !input.isNegative(), input, "The value '%s', but the duration cannot be negative", input);
+        return Arg.checkAndReturn(input != null && !input.isNegative(), input, "The value '%s', but the duration cannot be negative", input);
     }
 
     public static long checkNoNegative(long input) {
-        return Arg.check(input >= 0, input, "The value '%s', but it must be no negative", input);
+        return Arg.checkAndReturn(input >= 0, input, "The value '%s', but it must be no negative", input);
     }
 
     public static long checkNoNegative(long input, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isNoNegative(input), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isNoNegative(input), input, messageTemplate, args);
     }
 
     public static long checkNoNegative(long input, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isNoNegative(input), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isNoNegative(input), input, messageSupplier);
     }
 
     public static int checkNoNegative(int input) {
-        return Arg.check(Arg.isNoNegative(input), input, "The value '%s', but it must be no negative", input);
+        return Arg.checkAndReturn(Arg.isNoNegative(input), input, "The value '%s', but it must be no negative", input);
     }
 
     public static int checkNoNegative(int input, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isNoNegative(input), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isNoNegative(input), input, messageTemplate, args);
     }
 
     public static int checkNoNegative(int input, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isNoNegative(input), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isNoNegative(input), input, messageSupplier);
     }
 
     public static short checkNoNegative(short input) {
-        return Arg.check(Arg.isNoNegative(input), input, "The value '%s', but it must be no negative", input);
+        return Arg.checkAndReturn(Arg.isNoNegative(input), input, "The value '%s', but it must be no negative", input);
     }
 
     public static short checkNoNegative(short input, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isNoNegative(input), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isNoNegative(input), input, messageTemplate, args);
     }
 
     public static short checkNoNegative(short input, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isNoNegative(input), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isNoNegative(input), input, messageSupplier);
     }
 
     public static byte checkNoNegative(byte input) {
-        return Arg.check(Arg.isNoNegative(input), input, "The value '%s', but it must be no negative", input);
+        return Arg.checkAndReturn(Arg.isNoNegative(input), input, "The value '%s', but it must be no negative", input);
     }
 
     public static byte checkNoNegative(byte input, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isNoNegative(input), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isNoNegative(input), input, messageTemplate, args);
     }
 
     public static byte checkNoNegative(byte input, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isNoNegative(input), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isNoNegative(input), input, messageSupplier);
     }
 
     public static long checkNatural(long input, long limit) {
-        return Arg.check(Arg.isNatural(input, limit), input, "The value '%s', but it must be natural number with limit '%s'", input, limit);
+        return Arg.checkAndReturn(Arg.isNatural(input, limit), input, "The value '%s', but it must be natural number with limit '%s'", input, limit);
     }
 
     public static long checkNatural(long input, long limit, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isNatural(input, limit), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isNatural(input, limit), input, messageTemplate, args);
     }
 
     public static long checkNatural(long input, long limit, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isNatural(input, limit), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isNatural(input, limit), input, messageSupplier);
     }
 
     public static int checkNatural(int input, int limit) {
-        return Arg.check(Arg.isNatural(input, limit), input, "The value '%s', but it must be natural number with limit '%s'", input, limit);
+        return Arg.checkAndReturn(Arg.isNatural(input, limit), input, "The value '%s', but it must be natural number with limit '%s'", input, limit);
     }
 
     public static int checkNatural(int input, int limit, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isNatural(input, limit), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isNatural(input, limit), input, messageTemplate, args);
     }
 
     public static int checkNatural(int input, int limit, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isNatural(input, limit), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isNatural(input, limit), input, messageSupplier);
     }
 
     public static short checkNatural(short input, short limit) {
-        return Arg.check(Arg.isNatural(input, limit), input, "The value '%s', but it must be natural number with limit '%s'", input, limit);
+        return Arg.checkAndReturn(Arg.isNatural(input, limit), input, "The value '%s', but it must be natural number with limit '%s'", input, limit);
     }
 
     public static short checkNatural(short input, short limit, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isNatural(input, limit), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isNatural(input, limit), input, messageTemplate, args);
     }
 
     public static short checkNatural(short input, short limit, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isNatural(input, limit), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isNatural(input, limit), input, messageSupplier);
     }
 
     public static byte checkNatural(byte input, byte limit) {
-        return Arg.check(Arg.isNatural(input, limit), input, "The value '%s', but it must be natural number with limit '%s'", input, limit);
+        return Arg.checkAndReturn(Arg.isNatural(input, limit), input, "The value '%s', but it must be natural number with limit '%s'", input, limit);
     }
 
     public static byte checkNatural(byte input, byte limit, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isNatural(input, limit), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isNatural(input, limit), input, messageTemplate, args);
     }
 
     public static byte checkNatural(byte input, byte limit, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isNatural(input, limit), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isNatural(input, limit), input, messageSupplier);
     }
 
     public static long checkRange(long input, long lo, long hi) {
-        return Arg.check(Arg.isRange(input, lo, hi), input, "The value '%s', but it must be '%s<=value<%s'", input, lo, hi);
+        return Arg.checkAndReturn(Arg.isRange(input, lo, hi), input, "The value '%s', but it must be '%s<=value<%s'", input, lo, hi);
     }
 
     public static long checkRange(long input, long lo, long hi, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isRange(input, lo, hi), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isRange(input, lo, hi), input, messageTemplate, args);
     }
 
     public static long checkRange(long input, long lo, long hi, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isRange(input, lo, hi), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isRange(input, lo, hi), input, messageSupplier);
     }
 
     public static int checkRange(int input, int lo, int hi) {
-        return Arg.check(Arg.isRange(input, lo, hi), input, "The value '%s', but it must be '%s<=value<%s'", input, lo, hi);
+        return Arg.checkAndReturn(Arg.isRange(input, lo, hi), input, "The value '%s', but it must be '%s<=value<%s'", input, lo, hi);
     }
 
     public static int checkRange(int input, int lo, int hi, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isRange(input, lo, hi), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isRange(input, lo, hi), input, messageTemplate, args);
     }
 
     public static int checkRange(int input, int lo, int hi, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isRange(input, lo, hi), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isRange(input, lo, hi), input, messageSupplier);
     }
 
     public static short checkRange(short input, short lo, short hi) {
-        return Arg.check(Arg.isRange(input, lo, hi), input, "The value '%s', but it must be '%s<=value<%s'", input, lo, hi);
+        return Arg.checkAndReturn(Arg.isRange(input, lo, hi), input, "The value '%s', but it must be '%s<=value<%s'", input, lo, hi);
     }
 
     public static short checkRange(short input, short lo, short hi, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isRange(input, lo, hi), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isRange(input, lo, hi), input, messageTemplate, args);
     }
 
     public static short checkRange(short input, short lo, short hi, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isRange(input, lo, hi), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isRange(input, lo, hi), input, messageSupplier);
     }
 
     public static byte checkRange(byte input, byte lo, byte hi) {
-        return Arg.check(Arg.isRange(input, lo, hi), input, "The value '%s', but it must be '%s<=value<%s'", input, lo, hi);
+        return Arg.checkAndReturn(Arg.isRange(input, lo, hi), input, "The value '%s', but it must be '%s<=value<%s'", input, lo, hi);
     }
 
     public static byte checkRange(byte input, byte lo, byte hi, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isRange(input, lo, hi), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isRange(input, lo, hi), input, messageTemplate, args);
     }
 
     public static byte checkRange(byte input, byte lo, byte hi, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isRange(input, lo, hi), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isRange(input, lo, hi), input, messageSupplier);
     }
 
     public static long checkExcludeRange(long input, long lo, long hi) {
-        return Arg.check(Arg.isExcludeRange(input, lo, hi), input, "The value '%s', but it must be 'value<%s' or 'value>=%s'", input, lo, hi);
+        return Arg.checkAndReturn(Arg.isExcludeRange(input, lo, hi), input, "The value '%s', but it must be 'value<%s' or 'value>=%s'", input, lo, hi);
     }
 
     public static long checkExcludeRange(long input, long lo, long hi, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isExcludeRange(input, lo, hi), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isExcludeRange(input, lo, hi), input, messageTemplate, args);
     }
 
     public static long checkExcludeRange(long input, long lo, long hi, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isExcludeRange(input, lo, hi), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isExcludeRange(input, lo, hi), input, messageSupplier);
     }
 
     public static int checkExcludeRange(int input, int lo, int hi) {
-        return Arg.check(Arg.isExcludeRange(input, lo, hi), input, "The value '%s', but it must be 'value<%s' or 'value>=%s'", input, lo, hi);
+        return Arg.checkAndReturn(Arg.isExcludeRange(input, lo, hi), input, "The value '%s', but it must be 'value<%s' or 'value>=%s'", input, lo, hi);
     }
 
     public static int checkExcludeRange(int input, int lo, int hi, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isExcludeRange(input, lo, hi), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isExcludeRange(input, lo, hi), input, messageTemplate, args);
     }
 
     public static int checkExcludeRange(int input, int lo, int hi, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isExcludeRange(input, lo, hi), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isExcludeRange(input, lo, hi), input, messageSupplier);
     }
 
     public static short checkExcludeRange(short input, short lo, short hi) {
-        return Arg.check(Arg.isExcludeRange(input, lo, hi), input, "The value '%s', but it must be 'value<%s' or 'value>=%s'", input, lo, hi);
+        return Arg.checkAndReturn(Arg.isExcludeRange(input, lo, hi), input, "The value '%s', but it must be 'value<%s' or 'value>=%s'", input, lo, hi);
     }
 
     public static short checkExcludeRange(short input, short lo, short hi, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isExcludeRange(input, lo, hi), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isExcludeRange(input, lo, hi), input, messageTemplate, args);
     }
 
     public static short checkExcludeRange(short input, short lo, short hi, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isExcludeRange(input, lo, hi), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isExcludeRange(input, lo, hi), input, messageSupplier);
     }
 
     public static byte checkExcludeRange(byte input, byte lo, byte hi) {
-        return Arg.check(Arg.isExcludeRange(input, lo, hi), input, "The value '%s', but it must be 'value<%s' or 'value>=%s'", input, lo, hi);
+        return Arg.checkAndReturn(Arg.isExcludeRange(input, lo, hi), input, "The value '%s', but it must be 'value<%s' or 'value>=%s'", input, lo, hi);
     }
 
     public static byte checkExcludeRange(byte input, byte lo, byte hi, String messageTemplate, Object... args) {
-        return Arg.check(Arg.isExcludeRange(input, lo, hi), input, messageTemplate, args);
+        return Arg.checkAndReturn(Arg.isExcludeRange(input, lo, hi), input, messageTemplate, args);
     }
 
     public static byte checkExcludeRange(byte input, byte lo, byte hi, Supplier<String> messageSupplier) {
-        return Arg.check(Arg.isExcludeRange(input, lo, hi), input, messageSupplier);
+        return Arg.checkAndReturn(Arg.isExcludeRange(input, lo, hi), input, messageSupplier);
     }
 
     public static void checkCompatibilityFrom(Class<?> inputClass, Class<?> matchClass) {
@@ -1038,11 +1090,11 @@ public final class Arg {
     }
 
     public static void checkCompatibilityFrom(Class<?> inputClass, Class<?> matchClass, String messageTemplate, Object... args) {
-        Arg.check(Arg.isCompatibilityFrom(inputClass, matchClass), null, messageTemplate, args);
+        Arg.checkAndReturn(Arg.isCompatibilityFrom(inputClass, matchClass), null, messageTemplate, args);
     }
 
     public static void checkCompatibilityFrom(Class<?> inputClass, Class<?> matchClass, Supplier<String> messageSupplier) {
-        Arg.check(Arg.isCompatibilityFrom(inputClass, matchClass), null, messageSupplier);
+        Arg.checkAndReturn(Arg.isCompatibilityFrom(inputClass, matchClass), null, messageSupplier);
     }
 
     public static Charset effectiveCharset(Object input) {
@@ -1134,5 +1186,232 @@ public final class Arg {
         else if (input instanceof File) return ((File) input).toPath();
         else if (input instanceof CharSequence) return Paths.get(input.toString());
         throw new IllegalArgumentException("The input parameters do not meet the requirements");
+    }
+
+    /**
+     * Returns a parsed duration value.
+     */
+    public static Duration parseDuration(String value, Duration defaultValue) {
+        return Arg.parseDuration(value, defaultValue, "Input Duration");
+    }
+
+    /**
+     * Returns a parsed duration value.
+     */
+    public static Duration parseDuration(String value, Duration defaultValue, String main) {
+        if (value == null) {
+            if (defaultValue == null) {
+                throw new IllegalArgumentException("The value of '" + main + "' must be not null");
+            } else {
+                return defaultValue;
+            }
+        }
+        int length = value.length();
+        if (length == 0) {
+            if (defaultValue == null) {
+                throw new IllegalArgumentException("The value of '" + main + "' must be not empty");
+            } else {
+                return defaultValue;
+            }
+        }
+        boolean isIsoFormat = value.contains("p") || value.contains("P");
+        if (isIsoFormat) {
+            Duration duration = Duration.parse(value);
+            if (duration.isNegative()) {
+                throw new IllegalArgumentException(String.format(
+                        "main %s invalid format; was %s, but the duration cannot be negative", main, value));
+            }
+            return duration;
+        }
+        TimeUnit timeUnit = Arg.parseTimeUnit(value, null, main);
+
+        int i = value.length() - 2;
+        if (Arg.isNumberChar(value.charAt(i), false)) {
+            i++;
+        }
+
+        long duration = Arg.parseLong(value.substring(0, i), null, main);
+        long nanos = timeUnit.toNanos(duration);
+        return Duration.ofNanos(nanos);
+    }
+
+    /**
+     * Returns a parsed {@link TimeUnit} value.
+     */
+    public static TimeUnit parseTimeUnit(String value, TimeUnit defaultValue) {
+        return Arg.parseTimeUnit(value, defaultValue, "Input TimeUnit");
+    }
+
+    /**
+     * Returns a parsed {@link TimeUnit} value.
+     */
+    public static TimeUnit parseTimeUnit(String value, TimeUnit defaultValue, String main) {
+        if (value == null) {
+            if (defaultValue == null) {
+                throw new IllegalArgumentException("The value of '" + main + "' must be not null");
+            } else {
+                return defaultValue;
+            }
+        }
+        int length = value.length();
+        if (length == 0) {
+            if (defaultValue == null) {
+                throw new IllegalArgumentException("The value of '" + main + "' must be not empty");
+            } else {
+                return defaultValue;
+            }
+        }
+        char c = Character.toLowerCase(value.charAt(length - 1));
+        switch (c) {
+            case 'd':
+                return TimeUnit.DAYS;
+            case 'h':
+                return TimeUnit.HOURS;
+            case 'm':
+                return TimeUnit.MINUTES;
+            case 's': {
+                if (length > 2) {
+                    c = Character.toLowerCase(value.charAt(length - 2));
+                    if (c == 'm') return TimeUnit.MILLISECONDS;
+                }
+                return TimeUnit.SECONDS;
+            }
+            default:
+                throw new IllegalArgumentException(String.format(
+                        "main %s invalid format; was %s, must end with one of [dDhHmMsS]", main, value));
+        }
+    }
+
+    public static byte parseByte(String value, Number defaultValue) {
+        return Arg.parseNumber(value, byte.class, defaultValue, "Input Number").byteValue();
+    }
+
+    public static byte parseByte(String value, Number defaultValue, String main) {
+        return Arg.parseNumber(value, byte.class, defaultValue, main).byteValue();
+    }
+
+    public static short parseShort(String value, Number defaultValue) {
+        return Arg.parseNumber(value, short.class, defaultValue, "Input Number").shortValue();
+    }
+
+    public static short parseShort(String value, Number defaultValue, String main) {
+        return Arg.parseNumber(value, short.class, defaultValue, main).shortValue();
+    }
+
+    public static int parseInt(String value, Number defaultValue) {
+        return Arg.parseNumber(value, int.class, defaultValue, "Input Number").intValue();
+    }
+
+    public static int parseInt(String value, Number defaultValue, String main) {
+        return Arg.parseNumber(value, int.class, defaultValue, main).intValue();
+    }
+
+    public static long parseLong(String value, Number defaultValue) {
+        return Arg.parseNumber(value, long.class, defaultValue, "Input Number").longValue();
+    }
+
+    public static long parseLong(String value, Number defaultValue, String main) {
+        return Arg.parseNumber(value, long.class, defaultValue, main).longValue();
+    }
+
+    public static float parseFloat(String value, Number defaultValue) {
+        return Arg.parseNumber(value, float.class, defaultValue, "Input Number").floatValue();
+    }
+
+    public static float parseFloat(String value, Number defaultValue, String main) {
+        return Arg.parseNumber(value, float.class, defaultValue, main).floatValue();
+    }
+
+    public static double parseDouble(String value, Number defaultValue) {
+        return Arg.parseDouble(value, defaultValue, "Input Number");
+    }
+
+    public static double parseDouble(String value, Number defaultValue, String main) {
+        return Arg.parseNumber(value, double.class, defaultValue, main).doubleValue();
+    }
+
+    public static BigInteger parseBigInteger(String value, Number defaultValue) {
+        return (BigInteger) Arg.parseNumber(value, BigInteger.class, defaultValue, "Input Number");
+    }
+
+    public static BigInteger parseBigInteger(String value, Number defaultValue, String main) {
+        return (BigInteger) Arg.parseNumber(value, BigInteger.class, defaultValue, main);
+    }
+
+    public static BigDecimal parseBigDecimal(String value, Number defaultValue) {
+        return (BigDecimal) Arg.parseNumber(value, BigDecimal.class, defaultValue, "Input Number");
+    }
+
+    public static BigDecimal parseBigDecimal(String value, Number defaultValue, String main) {
+        return (BigDecimal) Arg.parseNumber(value, BigDecimal.class, defaultValue, main);
+    }
+
+    private static Number parseNumber(String value, Class<? extends Number> type, Number defaultValue, String main) {
+        if (value == null) {
+            if (defaultValue == null) {
+                throw new IllegalArgumentException("The value of '" + main + "' must be not null");
+            } else {
+                return defaultValue;
+            }
+        }
+        BasicType basicType = BASIC_TYPE_INFO.get(type);
+        if (basicType != null) {
+            try {
+                return (Number) basicType.converter.apply(value, main);
+            } catch (Throwable e) {
+                if (Log.isEnabledDebug()) {
+                    Log.debug("Error to parse '" + value + "' to " + type.getSimpleName() + " by basic 'parseXXX' method in Number", e);
+                }
+            }
+        }
+        try {
+            if (value.lastIndexOf(".") >= 0) {
+                BigDecimal result = new BigDecimal(value);
+                if (type == BigInteger.class) {
+                    return result.toBigIntegerExact();
+                }
+                return result;
+            } else {
+                if (type == BigDecimal.class) {
+                    return new BigDecimal(value);
+                } else {
+                    return new BigInteger(value);
+                }
+            }
+        } catch (NumberFormatException e) {
+            if (Log.isEnabledDebug()) {
+                Log.debug("Error to parse '" + value + "' to " + type.getSimpleName() + " by BigDecimal or BigInteger", e);
+            }
+        }
+        try {
+            NumberFormat numberFormat;
+            if (value.endsWith("%")) {
+                numberFormat = NumberFormat.getPercentInstance();
+            } else if (value.indexOf(',') >= 0) {
+                numberFormat = NumberFormat.getNumberInstance();
+            } else {
+                numberFormat = NumberFormat.getCurrencyInstance();
+            }
+            Number number = numberFormat.parse(value);
+            if (type.isInstance(number)) {
+                return number;
+            }
+            if (type == BigDecimal.class) {
+                return new BigDecimal(number.toString());
+            } else if (type == BigInteger.class) {
+                return new BigInteger(number.toString());
+            } else {
+                return number;
+            }
+        } catch (ParseException e) {
+            if (Log.isEnabledDebug()) {
+                Log.debug("Error to parse '" + value + "' to " + type.getSimpleName() + " by NumberFormat", e);
+            }
+            if (defaultValue == null) {
+                throw new IllegalArgumentException("Error to parse '" + value + "' to " + type.getSimpleName());
+            } else {
+                return defaultValue;
+            }
+        }
     }
 }

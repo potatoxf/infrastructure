@@ -62,8 +62,7 @@ class InterveningSequenceOfExponent implements InterveningSequence {
     }
 
     InterveningSequenceOfExponent(long initialInterval, double multiplier, long maxInterval, long maxElapsedTime, int maxAttempts) {
-        Arg.check(multiplier >= 1, null, () -> "Invalid multiplier '" + multiplier + "'. Should be greater than " +
-                "or equal to 1. A multiplier of 1 is equivalent to a fixed interval.");
+        Arg.check(multiplier >= 1, () -> "Invalid multiplier '" + multiplier + "'. Should be greater than or equal to 1. A multiplier of 1 is equivalent to a fixed interval.");
         this.initialInterval = initialInterval;
         this.multiplier = multiplier;
         this.maxInterval = maxInterval;
