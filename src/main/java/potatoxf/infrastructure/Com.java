@@ -56,6 +56,28 @@ public final class Com {
     }
 
     /**
+     * 构建字符串，用于{@link Object#toString()}
+     *
+     * @param args 输入参数，如果是奇数：prefix,key1,value1,key2,value2，如果是偶数，key1,value1,key2,value2
+     * @return 返回构建的字符串 {@link String}
+     */
+    public static String buildToString(Object... args) {
+        StringBuilder sb = new StringBuilder();
+        int i = 0;
+        if (args.length % 2 != 0) {
+            sb.append(args[0]);
+            i++;
+        }
+        sb.append('{');
+        while (i < args.length) {
+            sb.append(args[i++]).append('=').append(args[i++]).append(',');
+        }
+        sb.setLength(sb.length() - 1);
+        sb.append('}');
+        return sb.toString();
+    }
+
+    /**
      * 生成填充类属性类
      *
      * @param start 开始索引
