@@ -728,7 +728,7 @@ public final class Log {
     /**
      * 日志等级
      */
-    private enum Lv {
+    public enum Lv {
         TRACE, DEBUG, INFO, WARN, ERROR
     }
 }
