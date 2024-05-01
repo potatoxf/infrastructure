@@ -148,6 +148,61 @@ public final class Log {
         global().logError(messageTemplate, args);
     }
 
+    public static <T> T traceOrThrowError(boolean isThrows, Throwable exception, String msg) {
+        if (isThrows) {
+            throw new Error(msg, exception);
+        } else {
+            if (Log.isEnabledTrace()) {
+                Log.trace(msg, exception);
+            }
+            return null;
+        }
+    }
+
+    public static <T> T debugOrThrowError(boolean isThrows, Throwable exception, String msg) {
+        if (isThrows) {
+            throw new Error(msg, exception);
+        } else {
+            if (Log.isEnabledDebug()) {
+                Log.debug(msg, exception);
+            }
+            return null;
+        }
+    }
+
+    public static <T> T infoOrThrowError(boolean isThrows, Throwable exception, String msg) {
+        if (isThrows) {
+            throw new Error(msg, exception);
+        } else {
+            if (Log.isEnabledInfo()) {
+                Log.info(msg, exception);
+            }
+            return null;
+        }
+    }
+
+    public static <T> T warnOrThrowError(boolean isThrows, Throwable exception, String msg) {
+        if (isThrows) {
+            throw new Error(msg, exception);
+        } else {
+            if (Log.isEnabledWarn()) {
+                Log.warn(msg, exception);
+            }
+            return null;
+        }
+    }
+
+    public static <T> T errorOrThrowError(boolean isThrows, Throwable exception, String msg) {
+        if (isThrows) {
+            throw new Error(msg, exception);
+        } else {
+            if (Log.isEnabledError()) {
+                Log.error(msg, exception);
+            }
+            return null;
+        }
+    }
+
     private static boolean check(String id, boolean isThrowException) {
         Factory factory = FACTORY_MAP.get(id);
         if (factory == null) {
@@ -673,7 +728,7 @@ public final class Log {
     /**
      * 日志等级
      */
-    public enum Lv {
+    private enum Lv {
         TRACE, DEBUG, INFO, WARN, ERROR
     }
 }
