@@ -1,10 +1,11 @@
 package potatoxf.infrastructure;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
+
+import sun.misc.Unsafe;
+
+import java.lang.reflect.*;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -17,43 +18,25 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public final class Com {
     /**
+     * The Unsafe class
+     */
+    private static final Class<Unsafe> UNSAFE_CLASS = Unsafe.class;
+    /**
+     * The Unsafe instance
+     */
+    private static final Unsafe UNSAFE_INSTANCE = safeGetUnsafe();
+    /**
      * A reference to Throwable initCause method
      */
-    private static final Method INIT_CAUSE_METHOD;
+    private static final Method INIT_CAUSE_METHOD = Com.safeGetMethod(false, false, Throwable.class, "initCause", Throwable.class);
     /**
      * A reference to Throwable detailMessage field
      */
-    private static final Field DETAIL_MESSAGE_FIELD;
+    private static final Field DETAIL_MESSAGE_FIELD = Com.safeGetField(false, false, Throwable.class, "detailMessage");
     /**
      * 缓存公共构造函数
      */
     private static final Map<Class<?>, Constructor<?>[]> CACHE_CONSTRUCTOR = new ConcurrentHashMap<>();
-
-    static {
-        Method method;
-        try {
-            method = Throwable.class.getMethod("initCause", Throwable.class);
-            method.setAccessible(true);
-        } catch (Throwable e) {
-            if (Log.isEnabledWarn()) {
-                Log.warn("Error getting the Throwable 'initCause()' method", e);
-            }
-            method = null;
-        }
-        INIT_CAUSE_METHOD = method;
-        Field field;
-        try {
-            field = Throwable.class.getDeclaredField("detailMessage");
-            field.setAccessible(true);
-        } catch (Throwable e) {
-            if (Log.isEnabledWarn()) {
-                Log.warn("Error getting the Throwable 'detailMessage' field", e);
-            }
-            field = null;
-        }
-        DETAIL_MESSAGE_FIELD = field;
-
-    }
 
     /**
      * 构建字符串，用于{@link Object#toString()}
@@ -177,6 +160,19 @@ public final class Com {
      * @return 创建对象
      * @throws ReflectiveOperationException 如果反射构造对象抛出异常
      */
+    public static <T> T newInstance(String type, Object... args) throws ReflectiveOperationException {
+        return Com.newInstance(Com.safeGetClass(true, type), args);
+    }
+
+    /**
+     * 创建实例
+     *
+     * @param type 实例类型
+     * @param args 参数
+     * @param <T>  对象类型
+     * @return 创建对象
+     * @throws ReflectiveOperationException 如果反射构造对象抛出异常
+     */
     public static <T> T newInstance(Class<T> type, Object... args) throws ReflectiveOperationException {
         int modifiers = type.getModifiers();
         if (Modifier.isAbstract(modifiers)) {
@@ -185,11 +181,11 @@ public final class Com {
         if (!Modifier.isPublic(modifiers)) {
             throw new IllegalAccessException("The class [" + type + "] is not a public class");
         }
-        Constructor<?>[] constructors = CACHE_CONSTRUCTOR.computeIfAbsent(type, Class::getConstructors);
+        Constructor<?>[] constructors = CACHE_CONSTRUCTOR.computeIfAbsent(type, Class::getDeclaredConstructors);
         if (constructors == null || constructors.length == 0) {
             throw new NoSuchMethodException("No such accessible constructor on object: " + type.getName());
         }
-        Constructor<T> constructor = null;
+        Constructor<?> constructor = null;
         for (Constructor<?> ctor : constructors) {
             if (ctor.getParameterCount() != args.length) continue;
             Class<?>[] parameterTypes = ctor.getParameterTypes();
@@ -201,14 +197,15 @@ public final class Com {
                 break;
             }
             if (match) {
-                //noinspection unchecked
-                constructor = (Constructor<T>) ctor;
+                constructor = ctor;
+                break;
             }
         }
         if (constructor == null) {
             throw new NoSuchMethodException("No such accessible constructor on object: " + type.getName());
         }
-        return constructor.newInstance(args);
+        //noinspection unchecked
+        return (T) Com.safeSetAccessible(constructor).newInstance(args);
     }
 
     /**
@@ -258,5 +255,141 @@ public final class Com {
                 Log.error(thread + " was interrupted when it is resting", e);
             }
         }
+    }
+
+    /**
+     * 对 {@link Unsafe} 的静态访问和用于执行低级别、不安全操作的便捷实用方法。
+     *
+     * @return {@link Unsafe}
+     */
+    public static Unsafe safeGetUnsafe() {
+        if (UNSAFE_INSTANCE != null) return UNSAFE_INSTANCE;
+        try {
+            Field field = safeGetField(false, false, UNSAFE_CLASS, "THE_ONE");
+            if (field == null) {
+                field = safeGetField(false, false, UNSAFE_CLASS, "theUnsafe");
+            }
+            if (field == null) {
+                return newInstance(UNSAFE_CLASS);
+            }
+            return (Unsafe) field.get(null);
+        } catch (Throwable e) {
+            throw new Error("Failed to load sun.misc.Unsafe", e);
+        }
+    }
+
+    /**
+     * 返回给定对象字段的位置。
+     *
+     * @param clazz     包含字段的类
+     * @param fieldName 字段的名称
+     * @return 字段的地址偏移量
+     */
+    public static long safeGetObjectFieldOffset(Class<?> clazz, String fieldName) {
+        return Com.safeGetObjectFieldOffset(true, clazz, fieldName);
+    }
+
+    /**
+     * 返回给定对象字段的位置。
+     *
+     * @param isThrow   是否抛出移除
+     * @param clazz     包含字段的类
+     * @param fieldName 字段的名称
+     * @return 字段的地址偏移量
+     */
+    public static long safeGetObjectFieldOffset(boolean isThrow, Class<?> clazz, String fieldName) {
+        return UNSAFE_INSTANCE.objectFieldOffset(Com.safeGetField(isThrow, false, clazz, fieldName));
+    }
+
+    /**
+     * 返回给定静态字段的位置。
+     *
+     * @param clazz     包含字段的类
+     * @param fieldName 字段的名称
+     * @return 字段的地址偏移量
+     */
+    public static long safeGetStaticFieldOffset(Class<?> clazz, String fieldName) {
+        return Com.safeGetStaticFieldOffset(true, clazz, fieldName);
+    }
+
+    /**
+     * 返回给定静态字段的位置。
+     *
+     * @param isThrow   是否抛出移除
+     * @param clazz     包含字段的类
+     * @param fieldName 字段的名称
+     * @return 字段的地址偏移量
+     */
+    public static long safeGetStaticFieldOffset(boolean isThrow, Class<?> clazz, String fieldName) {
+        return UNSAFE_INSTANCE.staticFieldOffset(Com.safeGetField(isThrow, false, clazz, fieldName));
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> Class<T> safeGetClass(Class<?> input) {
+        return Objects.requireNonNull((Class<T>) input, "The input class must be not null");
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> Class<T> safeGetClass(boolean isThrow, String className) {
+        try {
+            return (Class<T>) Class.forName(className);
+        } catch (Throwable e) {
+            return Log.warnOrThrowError(isThrow, e, "Error to getting class from '" + className + "'");
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> Class<T> safeGetClass(boolean isThrow, String className, boolean initialize, ClassLoader loader) {
+        try {
+            return (Class<T>) Class.forName(className, initialize, loader);
+        } catch (Throwable e) {
+            return Log.warnOrThrowError(isThrow, e, "Error to getting class from '" + className + "'");
+        }
+    }
+
+    public static Constructor<?> safeGetConstructor(boolean isThrow, boolean isMustPublic, String type, Class<?>... args) {
+        return Com.safeGetConstructor(isThrow, isMustPublic, Com.safeGetClass(isThrow, type), args);
+    }
+
+    public static Constructor<?> safeGetConstructor(boolean isThrow, boolean isMustPublic, Class<?> type, Class<?>... args) {
+        try {
+            type = Com.safeGetClass(type);
+            return Com.safeSetAccessible(isMustPublic ? type.getConstructor(args) : type.getDeclaredConstructor(args));
+        } catch (Throwable e) {
+            return Log.warnOrThrowError(isThrow, e, "Error to calling '" + type + "#get" + (isMustPublic ? "" : "Declared") + "Constructor' for getting 'Constructor'");
+        }
+    }
+
+    public static Method safeGetMethod(boolean isThrow, boolean isMustPublic, String type, String methodName, Class<?>... args) {
+        return Com.safeGetMethod(isThrow, isMustPublic, Com.safeGetClass(isThrow, type), methodName, args);
+    }
+
+    public static Method safeGetMethod(boolean isThrow, boolean isMustPublic, Class<?> type, String methodName, Class<?>... args) {
+        try {
+            type = Com.safeGetClass(type);
+            return Com.safeSetAccessible(isMustPublic ? type.getMethod(methodName, args) : type.getDeclaredMethod(methodName, args));
+        } catch (Throwable e) {
+            return Log.warnOrThrowError(isThrow, e, "Error to calling '" + type + "#get" + (isMustPublic ? "" : "Declared") + "Method' for getting 'Method'");
+        }
+    }
+
+    public static Field safeGetField(boolean isThrow, boolean isMustPublic, String type, String fieldName) {
+        return Com.safeGetField(isThrow, isMustPublic, Com.safeGetClass(isThrow, type), fieldName);
+    }
+
+    public static Field safeGetField(boolean isThrow, boolean isMustPublic, Class<?> type, String fieldName) {
+        try {
+            type = Com.safeGetClass(type);
+            return Com.safeSetAccessible(isMustPublic ? type.getField(fieldName) : type.getDeclaredField(fieldName));
+        } catch (Throwable e) {
+            return Log.warnOrThrowError(isThrow, e, "Error to calling '" + type + "#get" + (isMustPublic ? "" : "Declared") + "Field' for getting 'Field'");
+        }
+    }
+
+    public static <T extends AccessibleObject & Member> T safeSetAccessible(T input) {
+        if (!Modifier.isPublic(input.getModifiers())) {
+            input.setAccessible(true);
+        }
+        return input;
     }
 }
