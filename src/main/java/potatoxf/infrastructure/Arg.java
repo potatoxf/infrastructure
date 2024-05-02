@@ -512,53 +512,53 @@ public final class Arg {
     }
 
     /**
-     * 判断 {@code fromClass}是{@code inputClass}或接口，
+     * 判断 {@code targetType}是{@code inputType}或接口，
      *
-     * @param inputClass 要判断的类型，不允许为null
-     * @param fromClass  是否兼容父级类型，不允许为null
+     * @param inputType  要判断的类型，不允许为null
+     * @param targetType 是否兼容父级类型，不允许为null
      * @return 如果兼容返回true，否则返回false
      */
-    public static boolean isImplementsFrom(Class<?> inputClass, Class<?> fromClass) {
-        return inputClass != fromClass && fromClass.isAssignableFrom(inputClass);
+    public static boolean isImplementsFrom(Class<?> inputType, Class<?> targetType) {
+        return inputType != targetType && targetType.isAssignableFrom(inputType);
     }
 
     /**
-     * 判断{@code fromClass}是否兼容{@code inputClass}，
-     * {@code fromClass}是{@code inputClass}或接口，
-     * 或{@code fromClass}是{@code inputClass}或更大的基本类型
+     * 判断{@code targetType}是否兼容{@code inputType}，
+     * {@code targetType}是{@code inputType}或接口，
+     * 或{@code targetType}是{@code inputType}或更大的基本类型
      *
-     * @param inputClass 要判断的类型，允许为null
-     * @param fromClass  是否兼容父级类型，不允许为null
+     * @param inputType  要判断的类型，允许为null
+     * @param targetType 是否兼容父级类型，不允许为null
      * @return 如果兼容返回true，否则返回false
      */
-    public static boolean isCompatibilityFrom(Class<?> inputClass, Class<?> fromClass) {
-        if (fromClass == null) throw new IllegalArgumentException("The match class must no null");
-        if (inputClass == fromClass || inputClass == null) return true;
-        boolean inputArray = inputClass.isArray();
-        boolean matchArray = fromClass.isArray();
+    public static boolean isCompatibilityFrom(Class<?> inputType, Class<?> targetType) {
+        if (targetType == null) throw new IllegalArgumentException("The match class must no null");
+        if (inputType == targetType || inputType == null) return true;
+        boolean inputArray = inputType.isArray();
+        boolean matchArray = targetType.isArray();
         if (inputArray && matchArray) {
-            return fromClass.isAssignableFrom(inputClass);
+            return targetType.isAssignableFrom(inputType);
         } else if (inputArray || matchArray) {
             return false;
         } else {
-            boolean matchPrimitive = fromClass.isPrimitive();
-            boolean inputPrimitive = inputClass.isPrimitive();
+            boolean matchPrimitive = targetType.isPrimitive();
+            boolean inputPrimitive = inputType.isPrimitive();
             if (matchPrimitive) {
-                int matchCompatibility = BASIC_TYPE_INFO.get(fromClass).level;
-                int inputCompatibility = BASIC_TYPE_INFO.getOrDefault(inputClass, NULL_BASIC_TYPE).level;
+                int matchCompatibility = BASIC_TYPE_INFO.get(targetType).level;
+                int inputCompatibility = BASIC_TYPE_INFO.getOrDefault(inputType, NULL_BASIC_TYPE).level;
                 if (inputCompatibility < 0) return false;
                 if (inputCompatibility > 0 && matchCompatibility > 0) {
                     return matchCompatibility >= inputCompatibility;//匹配类型是原生类型的兼容性
                 } else if (inputCompatibility == 0 && matchCompatibility == 0) {
-                    if (inputPrimitive) return fromClass == inputClass;
-                    else if (inputClass == CLASS_WZ && fromClass == CLASS_Z) return true;
-                    else return inputClass == CLASS_WC && fromClass == CLASS_C;
+                    if (inputPrimitive) return targetType == inputType;
+                    else if (inputType == CLASS_WZ && targetType == CLASS_Z) return true;
+                    else return inputType == CLASS_WC && targetType == CLASS_C;
                 }
                 return false;
             } else if (inputPrimitive) {
-                return fromClass.isAssignableFrom(BASIC_TYPE_INFO.get(inputClass).toType);
+                return targetType.isAssignableFrom(BASIC_TYPE_INFO.get(inputType).toType);
             } else {
-                return fromClass.isAssignableFrom(inputClass);
+                return targetType.isAssignableFrom(inputType);
             }
         }
     }
