@@ -10,6 +10,8 @@ import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.locks.StampedLock;
+import java.util.function.Supplier;
 
 /**
  * 公共函数库，主要包括经常使用的各种各样的静态函数
@@ -39,6 +41,64 @@ public final class Com {
      * 缓存公共构造函数
      */
     private static final ConcurrentHashMap<Class<?>, Constructor<?>[]> CACHE_CONSTRUCTOR = new ConcurrentHashMap<>();
+
+    /**
+     * 乐观同步读取
+     *
+     * @param stampedLock cas锁
+     * @param reader      读取动作
+     * @param <T>         读取结果类型
+     * @return 返回读取结果
+     */
+    public static <T> T syncOptimisticRead(StampedLock stampedLock, Supplier<T> reader) {
+        long l = stampedLock.tryOptimisticRead();
+        T result;
+        if (stampedLock.validate(l)) {
+            result = reader.get();
+        } else {
+            l = stampedLock.readLock();
+            try {
+                result = reader.get();
+            } finally {
+                stampedLock.unlockRead(l);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 同步读取
+     *
+     * @param stampedLock cas锁
+     * @param reader      读取动作
+     * @param <T>         读取结果类型
+     * @return 返回读取结果
+     */
+    public static <T> T syncRead(StampedLock stampedLock, Supplier<T> reader) {
+        long l = stampedLock.readLock();
+        try {
+            return reader.get();
+        } finally {
+            stampedLock.unlockRead(l);
+        }
+    }
+
+    /**
+     * 同步写入
+     *
+     * @param stampedLock cas锁
+     * @param writer      写入动作
+     * @param <T>         写入结果类型
+     * @return 返回写入结果
+     */
+    public static <T> T syncWrite(StampedLock stampedLock, Supplier<T> writer) {
+        long l = stampedLock.writeLock();
+        try {
+            return writer.get();
+        } finally {
+            stampedLock.unlockWrite(l);
+        }
+    }
 
     /**
      * 构建字符串，用于{@link Object#toString()}
