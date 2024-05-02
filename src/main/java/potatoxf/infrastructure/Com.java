@@ -55,7 +55,20 @@ public final class Com {
         }
         sb.append('{');
         while (i < args.length) {
-            sb.append(args[i++]).append('=').append(args[i++]).append(',');
+            Object o = args[i++];
+            if (o != null) {
+                sb.append(o);
+            } else {
+                sb.append(" ");
+            }
+            sb.append('=');
+            o = args[i++];
+            if (o != null) {
+                sb.append(o);
+            } else {
+                sb.append(" ");
+            }
+            sb.append(',');
         }
         sb.setLength(sb.length() - 1);
         sb.append('}');
@@ -387,7 +400,7 @@ public final class Com {
             type = Com.safeGetClass(type);
             return Com.safeSetAccessible(isMustPublic ? type.getMethod(methodName, args) : type.getDeclaredMethod(methodName, args));
         } catch (Throwable e) {
-            return Log.warnOrThrowError(isThrow, e, "Error to calling '" + type + "#get" + (isMustPublic ? "" : "Declared") + "Method' for getting 'Method'");
+            return Log.warnOrThrowError(isThrow, e, "Error to calling '" + type + "#get" + (isMustPublic ? "" : "Declared") + "Method' for getting method of '" + methodName + "'");
         }
     }
 
@@ -400,7 +413,7 @@ public final class Com {
             type = Com.safeGetClass(type);
             return Com.safeSetAccessible(isMustPublic ? type.getField(fieldName) : type.getDeclaredField(fieldName));
         } catch (Throwable e) {
-            return Log.warnOrThrowError(isThrow, e, "Error to calling '" + type + "#get" + (isMustPublic ? "" : "Declared") + "Field' for getting 'Field'");
+            return Log.warnOrThrowError(isThrow, e, "Error to calling '" + type + "#get" + (isMustPublic ? "" : "Declared") + "Field' for getting field of '" + fieldName + "'");
         }
     }
 
