@@ -4,8 +4,10 @@ package potatoxf.infrastructure;
 import sun.misc.Unsafe;
 
 import java.lang.reflect.*;
-import java.util.Map;
+import java.util.Locale;
+import java.util.MissingResourceException;
 import java.util.Objects;
+import java.util.ResourceBundle;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -36,7 +38,7 @@ public final class Com {
     /**
      * 缓存公共构造函数
      */
-    private static final Map<Class<?>, Constructor<?>[]> CACHE_CONSTRUCTOR = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Class<?>, Constructor<?>[]> CACHE_CONSTRUCTOR = new ConcurrentHashMap<>();
 
     /**
      * 构建字符串，用于{@link Object#toString()}
@@ -254,6 +256,22 @@ public final class Com {
                 Thread thread = Thread.currentThread();
                 Log.error(thread + " was interrupted when it is resting", e);
             }
+        }
+    }
+
+    /**
+     * 获取 {@link ResourceBundle}
+     *
+     * @param isThrow      是否抛出移除
+     * @param i18nBaseName 国际化语言资源包基础名
+     * @param locale       国际化语言位置
+     * @return 返回 {@link ResourceBundle}
+     */
+    public static ResourceBundle safeGetResourceBundle(boolean isThrow, String i18nBaseName, Locale locale) {
+        try {
+            return locale == null ? ResourceBundle.getBundle(i18nBaseName) : ResourceBundle.getBundle(i18nBaseName, locale);
+        } catch (MissingResourceException e) {
+            return Log.warnOrThrowError(isThrow, e, "Error to getting resource from '" + i18nBaseName + ".properties'" + (locale != null ? "with '" + locale + "'" : ""));
         }
     }
 
