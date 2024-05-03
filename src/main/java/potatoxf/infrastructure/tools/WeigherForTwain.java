@@ -11,24 +11,24 @@ import java.util.Objects;
  * @author potatoxf
  */
 @FunctionalInterface
-public interface WeigherTwain<K, V> {
+public interface WeigherForTwain<K, V> {
     /**
-     * 返回权重为 {@code 1} 的{@link WeigherTwain}权重计算器。
+     * 返回权重为 {@code 1} 的{@link WeigherForTwain}权重计算器。
      *
-     * @return 返回 {@link WeigherTwain}
+     * @return 返回 {@link WeigherForTwain}
      */
     @SuppressWarnings("unchecked")
-    static <K, V> WeigherTwain<K, V> singleton() {
-        return (WeigherTwain<K, V>) WeigherFixed.ONE;
+    static <K, V> WeigherForTwain<K, V> singleton() {
+        return (WeigherForTwain<K, V>) WeigherForFixed.ONE;
     }
 
     /**
-     * 代理{@link WeigherTwain}，强制为非负数。
+     * 代理{@link WeigherForTwain}，强制为非负数。
      *
-     * @param delegate 被代理{@link WeigherTwain}
-     * @return 返回 {@link WeigherTwain}
+     * @param delegate 被代理{@link WeigherForTwain}
+     * @return 返回 {@link WeigherForTwain}
      */
-    static <K, V> WeigherTwain<K, V> boundedDelegate(WeigherTwain<K, V> delegate) {
+    static <K, V> WeigherForTwain<K, V> boundedDelegate(WeigherForTwain<K, V> delegate) {
         return new Bounded<>(delegate);
     }
 
@@ -41,11 +41,11 @@ public interface WeigherTwain<K, V> {
      */
     int weigh(K key, V value);
 
-    final class Bounded<K, V> implements WeigherTwain<K, V>, Serializable {
+    final class Bounded<K, V> implements WeigherForTwain<K, V>, Serializable {
         private static final long serialVersionUID = 1;
-        private final WeigherTwain<? super K, ? super V> delegate;
+        private final WeigherForTwain<? super K, ? super V> delegate;
 
-        private Bounded(WeigherTwain<? super K, ? super V> delegate) {
+        private Bounded(WeigherForTwain<? super K, ? super V> delegate) {
             this.delegate = Objects.requireNonNull(delegate, "The delegate must be not null");
         }
 

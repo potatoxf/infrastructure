@@ -31,7 +31,7 @@ import java.util.StringJoiner;
  *
  * @author potatoxf
  */
-class InterveningSequenceOfExponent implements InterveningSequence {
+class InterveningSequenceForExponent implements InterveningSequence {
     /**
      * 初始间隔（以毫秒为单位）。
      */
@@ -53,15 +53,15 @@ class InterveningSequenceOfExponent implements InterveningSequence {
      */
     private final int maxAttempts;
 
-    InterveningSequenceOfExponent() {
+    InterveningSequenceForExponent() {
         this(2000L, 1.5);
     }
 
-    InterveningSequenceOfExponent(long initialInterval, double multiplier) {
+    InterveningSequenceForExponent(long initialInterval, double multiplier) {
         this(initialInterval, multiplier, 30000L, Long.MAX_VALUE, Integer.MAX_VALUE);
     }
 
-    InterveningSequenceOfExponent(long initialInterval, double multiplier, long maxInterval, long maxElapsedTime, int maxAttempts) {
+    InterveningSequenceForExponent(long initialInterval, double multiplier, long maxInterval, long maxElapsedTime, int maxAttempts) {
         Arg.check(multiplier >= 1, () -> "Invalid multiplier '" + multiplier + "'. Should be greater than or equal to 1. A multiplier of 1 is equivalent to a fixed interval.");
         this.initialInterval = initialInterval;
         this.multiplier = multiplier;

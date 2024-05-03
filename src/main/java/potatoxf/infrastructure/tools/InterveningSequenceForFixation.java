@@ -7,7 +7,7 @@ package potatoxf.infrastructure.tools;
  *
  * @author potatoxf
  */
-class InterveningSequenceOfFixation implements InterveningSequence {
+class InterveningSequenceForFixation implements InterveningSequence {
     /**
      * 两次尝试之间的间隔（以毫秒为单位）。
      */
@@ -17,11 +17,11 @@ class InterveningSequenceOfFixation implements InterveningSequence {
      */
     private final int maxAttempts;
 
-    InterveningSequenceOfFixation() {
+    InterveningSequenceForFixation() {
         this(5000, Integer.MAX_VALUE);
     }
 
-    InterveningSequenceOfFixation(long interval, int maxAttempts) {
+    InterveningSequenceForFixation(long interval, int maxAttempts) {
         this.interval = interval;
         this.maxAttempts = maxAttempts;
     }

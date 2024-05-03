@@ -7,15 +7,15 @@ package potatoxf.infrastructure.tools;
  *
  * @author potatoxf
  */
-class WeigherFixed implements WeigherTwain<Object, Object>, WeigherSingle<Object> {
-    public static final WeigherFixed ONE = new WeigherFixed();
+class WeigherForFixed implements WeigherForTwain<Object, Object>, WeigherForSingle<Object> {
+    public static final WeigherForFixed ONE = new WeigherForFixed();
     private final int weigh;
 
-    WeigherFixed() {
+    WeigherForFixed() {
         this(1);
     }
 
-    WeigherFixed(int weigh) {
+    WeigherForFixed(int weigh) {
         this.weigh = weigh;
     }
 

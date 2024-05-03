@@ -37,7 +37,7 @@ public interface UUIDGenerator {
      * @return {@link UUIDGenerator}
      */
     static UUIDGenerator random() {
-        return new UUIDGeneratorOfRandom();
+        return new UUIDGeneratorForRandom();
     }
 
     /**

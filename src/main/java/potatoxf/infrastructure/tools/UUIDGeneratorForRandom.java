@@ -13,11 +13,11 @@ import java.util.concurrent.ThreadLocalRandom;
  *
  * @author potatoxf
  */
-class UUIDGeneratorOfRandom implements UUIDGenerator {
+class UUIDGeneratorForRandom implements UUIDGenerator {
 
     private final Random random;
 
-    UUIDGeneratorOfRandom() {
+    UUIDGeneratorForRandom() {
         byte[] seed = new byte[8];
         ThreadLocalRandom.current().nextBytes(seed);
         this.random = new Random(new BigInteger(seed).longValue());

@@ -29,7 +29,7 @@ public interface InterveningSequence {
      * @return {@code InterveningSequence}
      */
     static InterveningSequence exponential() {
-        return new InterveningSequenceOfExponent();
+        return new InterveningSequenceForExponent();
     }
 
     /**
@@ -40,7 +40,7 @@ public interface InterveningSequence {
      * @return {@code InterveningSequence}
      */
     static InterveningSequence exponential(long initialInterval, double multiplier) {
-        return new InterveningSequenceOfExponent(initialInterval, multiplier);
+        return new InterveningSequenceForExponent(initialInterval, multiplier);
     }
 
     /**
@@ -54,7 +54,7 @@ public interface InterveningSequence {
      * @return {@code InterveningSequence}
      */
     static InterveningSequence exponential(long initialInterval, double multiplier, long maxInterval, long maxElapsedTime, int maxAttempts) {
-        return new InterveningSequenceOfExponent(initialInterval, multiplier, maxInterval, maxElapsedTime, maxAttempts);
+        return new InterveningSequenceForExponent(initialInterval, multiplier, maxInterval, maxElapsedTime, maxAttempts);
     }
 
     /**
@@ -63,7 +63,7 @@ public interface InterveningSequence {
      * @return {@code InterveningSequence}
      */
     static InterveningSequence fixed() {
-        return new InterveningSequenceOfFixation();
+        return new InterveningSequenceForFixation();
     }
 
     /**
@@ -74,7 +74,7 @@ public interface InterveningSequence {
      * @return {@code InterveningSequence}
      */
     static InterveningSequence fixed(long interval, int maxAttempts) {
-        return new InterveningSequenceOfFixation(interval, maxAttempts);
+        return new InterveningSequenceForFixation(interval, maxAttempts);
     }
 
     /**

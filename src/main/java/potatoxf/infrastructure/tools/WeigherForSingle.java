@@ -11,24 +11,24 @@ import java.util.Objects;
  * @author potatoxf
  */
 @FunctionalInterface
-public interface WeigherSingle<T> {
+public interface WeigherForSingle<T> {
     /**
-     * 返回权重为 {@code 1} 的{@link WeigherSingle}权重计算器。
+     * 返回权重为 {@code 1} 的{@link WeigherForSingle}权重计算器。
      *
-     * @return 返回 {@link WeigherSingle}
+     * @return 返回 {@link WeigherForSingle}
      */
     @SuppressWarnings("unchecked")
-    static <T> WeigherSingle<T> singleton() {
-        return (WeigherSingle<T>) WeigherFixed.ONE;
+    static <T> WeigherForSingle<T> singleton() {
+        return (WeigherForSingle<T>) WeigherForFixed.ONE;
     }
 
     /**
-     * 代理{@link WeigherSingle}，强制为非负数。
+     * 代理{@link WeigherForSingle}，强制为非负数。
      *
-     * @param delegate 被代理{@link WeigherSingle}
-     * @return 返回 {@link WeigherSingle}
+     * @param delegate 被代理{@link WeigherForSingle}
+     * @return 返回 {@link WeigherForSingle}
      */
-    static <T> WeigherSingle<T> boundedDelegate(WeigherSingle<T> delegate) {
+    static <T> WeigherForSingle<T> boundedDelegate(WeigherForSingle<T> delegate) {
         return new Bounded<>(delegate);
     }
 
@@ -40,11 +40,11 @@ public interface WeigherSingle<T> {
      */
     int weigh(T input);
 
-    final class Bounded<T> implements WeigherSingle<T>, Serializable {
+    final class Bounded<T> implements WeigherForSingle<T>, Serializable {
         private static final long serialVersionUID = 1;
-        private final WeigherSingle<? super T> delegate;
+        private final WeigherForSingle<? super T> delegate;
 
-        Bounded(WeigherSingle<? super T> delegate) {
+        Bounded(WeigherForSingle<? super T> delegate) {
             this.delegate = Objects.requireNonNull(delegate, "The delegate must be not null");
         }
 
