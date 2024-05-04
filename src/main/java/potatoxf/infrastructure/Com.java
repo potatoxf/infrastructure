@@ -3,7 +3,12 @@ package potatoxf.infrastructure;
 
 import sun.misc.Unsafe;
 
+import java.io.Closeable;
+import java.io.Flushable;
+import java.io.IOException;
 import java.lang.reflect.*;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.Locale;
 import java.util.MissingResourceException;
 import java.util.Objects;
@@ -20,6 +25,7 @@ import java.util.function.Supplier;
  *
  * @author potatoxf
  */
+@SuppressWarnings("unchecked")
 public final class Com {
     /**
      * The Unsafe class
@@ -348,25 +354,55 @@ public final class Com {
         }
     }
 
+    public static void safeClose(Closeable... closeables) {
+        if (closeables == null) return;
+        for (Closeable closeable : closeables) {
+            if (closeable == null) continue;
+            if (closeable instanceof Flushable) {
+                try {
+                    ((Flushable) closeable).flush();
+                } catch (IOException e) {
+                    // ignore
+                }
+            }
+            try {
+                closeable.close();
+            } catch (IOException e) {
+                // ignore
+            }
+        }
+    }
+
     /**
      * 对 {@link Unsafe} 的静态访问和用于执行低级别、不安全操作的便捷实用方法。
      *
      * @return {@link Unsafe}
      */
     public static Unsafe safeGetUnsafe() {
+        return Com.safeGetUnsafe(true);
+    }
+
+    /**
+     * 对 {@link Unsafe} 的静态访问和用于执行低级别、不安全操作的便捷实用方法。
+     *
+     * @return {@link Unsafe}
+     */
+    public static Unsafe safeGetUnsafe(boolean isThrow) {
         if (UNSAFE_INSTANCE != null) return UNSAFE_INSTANCE;
-        try {
-            Field field = safeGetField(false, false, UNSAFE_CLASS, "THE_ONE");
-            if (field == null) {
-                field = safeGetField(false, false, UNSAFE_CLASS, "theUnsafe");
+        return AccessController.doPrivileged((PrivilegedAction<Unsafe>) () -> {
+            try {
+                Field field = safeGetField(false, false, UNSAFE_CLASS, "theUnsafe");
+                if (field == null) {
+                    field = safeGetField(false, false, UNSAFE_CLASS, "THE_ONE");
+                }
+                if (field == null) {
+                    return newInstance(UNSAFE_CLASS);
+                }
+                return (Unsafe) field.get(null);
+            } catch (Throwable e) {
+                return Log.errorOrThrowError(isThrow, e, "Failed to load sun.misc.Unsafe");
             }
-            if (field == null) {
-                return newInstance(UNSAFE_CLASS);
-            }
-            return (Unsafe) field.get(null);
-        } catch (Throwable e) {
-            throw new Error("Failed to load sun.misc.Unsafe", e);
-        }
+        });
     }
 
     /**
@@ -415,12 +451,10 @@ public final class Com {
         return UNSAFE_INSTANCE.staticFieldOffset(Com.safeGetField(isThrow, false, clazz, fieldName));
     }
 
-    @SuppressWarnings("unchecked")
     public static <T> Class<T> safeGetClass(Class<?> input) {
         return Objects.requireNonNull((Class<T>) input, "The input class must be not null");
     }
 
-    @SuppressWarnings("unchecked")
     public static <T> Class<T> safeGetClass(boolean isThrow, String className) {
         try {
             return (Class<T>) Class.forName(className);
@@ -429,13 +463,40 @@ public final class Com {
         }
     }
 
-    @SuppressWarnings("unchecked")
+    public static <T> Class<T> safeGetClass(boolean isThrow, String className, ClassLoader loader) {
+        return Com.safeGetClass(isThrow, className, true, loader);
+    }
+
     public static <T> Class<T> safeGetClass(boolean isThrow, String className, boolean initialize, ClassLoader loader) {
         try {
             return (Class<T>) Class.forName(className, initialize, loader);
         } catch (Throwable e) {
             return Log.warnOrThrowError(isThrow, e, "Error to getting class from '" + className + "'");
         }
+    }
+
+    public static <T> Class<T> safeGetClassWithSystem(boolean isThrow, String className) {
+        return Com.safeGetClass(isThrow, className, true, ClassLoader.getSystemClassLoader());
+    }
+
+    public static <T> Class<T> safeGetClassWithSystem(boolean isThrow, String className, boolean initialize) {
+        return Com.safeGetClass(isThrow, className, initialize, ClassLoader.getSystemClassLoader());
+    }
+
+    public static String safeGetClassName(Class<?> clz) {
+        // We want a human-readable class name. getName() returns JVM signature.
+        // getCanonicalName() returns proper string, unless it is hits the bug.
+        // If it fails, then we will fall back to getName()
+        //   https://bugs.openjdk.java.net/browse/JDK-8057919
+        try {
+            String n = clz.getCanonicalName();
+            if (n != null) {
+                return n;
+            }
+        } catch (Throwable e) {
+            // fall-through
+        }
+        return clz.getName();
     }
 
     public static Constructor<?> safeGetConstructor(boolean isThrow, boolean isMustPublic, String type, Class<?>... args) {
