@@ -1,0 +1,27 @@
+package potatoxf.infrastructure.jol;
+
+import potatoxf.infrastructure.Com;
+
+/**
+ * 强制执行内存布局，通过填充写入计数来避免错误共享。
+ * <p/>
+ * Create Time:2024-05-04
+ *
+ * @author potatoxf
+ */
+public class Layout128ForI2 extends Layout128ForI1P {
+    private static final long OFFSET_VALUE_2 = Com.safeGetObjectFieldOffset(Layout128ForI2.class, "value2");
+    private volatile int value2;
+
+    protected final int value2() {
+        return Com.safeGetUnsafe().getIntVolatile(this, OFFSET_VALUE_2);
+    }
+
+    protected final void value2(int count) {
+        Com.safeGetUnsafe().putOrderedInt(this, OFFSET_VALUE_2, count);
+    }
+
+    protected final boolean value2(int expect, int update) {
+        return Com.safeGetUnsafe().compareAndSwapInt(this, OFFSET_VALUE_2, expect, update);
+    }
+}
