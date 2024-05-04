@@ -9,27 +9,26 @@ package potatoxf.infrastructure.tools;
  */
 @FunctionalInterface
 public interface TimeTicker {
-    TimeTicker DISABLE = new Disable(), SYSTEM_NANO_TIME = new Disable(), SYSTEM_MILLIS_TIME = new SystemMillisTime();
 
     /**
      * 始终返回 {@code 0} 的数量。
      */
     static TimeTicker disabledTicker() {
-        return TimeTicker.DISABLE;
+        return Disable.INSTANCE;
     }
 
     /**
      * 返回 {@link System#nanoTime} 读取当前数量。
      */
     static TimeTicker systemTicker() {
-        return TimeTicker.SYSTEM_NANO_TIME;
+        return SystemNanoTime.INSTANCE;
     }
 
     /**
      * 返回 {@link System#currentTimeMillis()} 读取当前数量。
      */
     static TimeTicker systemMillisTimeticker() {
-        return TimeTicker.SYSTEM_MILLIS_TIME;
+        return SystemMillisTime.INSTANCE;
     }
 
     /**
@@ -40,6 +39,8 @@ public interface TimeTicker {
     long read();
 
     class Disable implements TimeTicker {
+        private static final TimeTicker INSTANCE = new Disable();
+
         private Disable() {
         }
 
@@ -50,6 +51,8 @@ public interface TimeTicker {
     }
 
     class SystemNanoTime implements TimeTicker {
+        private static final TimeTicker INSTANCE = new SystemNanoTime();
+
         private SystemNanoTime() {
         }
 
@@ -60,6 +63,8 @@ public interface TimeTicker {
     }
 
     class SystemMillisTime implements TimeTicker {
+        private static final TimeTicker INSTANCE = new SystemMillisTime();
+
         private SystemMillisTime() {
         }
 
