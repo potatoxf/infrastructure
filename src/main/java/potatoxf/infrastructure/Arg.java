@@ -3,14 +3,19 @@ package potatoxf.infrastructure;
 import potatoxf.infrastructure.function.ArrayElementGetter;
 import potatoxf.infrastructure.function.ArrayElementSetter;
 import potatoxf.infrastructure.function.ArrayLengthGetter;
+import potatoxf.infrastructure.function.ThConsumer;
+import sun.misc.Unsafe;
 
 import java.io.File;
 import java.lang.reflect.Array;
+import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.text.NumberFormat;
 import java.text.ParseException;
 import java.time.Duration;
@@ -53,6 +58,14 @@ import java.util.function.*;
  * @author potatoxf
  */
 public final class Arg {
+    /**
+     * The Unsafe class
+     */
+    public static final Class<Unsafe> UNSAFE_CLASS = Unsafe.class;
+    /**
+     * The Unsafe instance
+     */
+    private static final Unsafe UNSAFE_INSTANCE = safeGetUnsafe();
     public static final Class<?> CLASS_OBJECT = Object.class, CLASSES_OBJECT = Object[].class;
     public static final Class<?> CLASS_TYPE = Class.class, CLASSES_TYPE = Class[].class;
     public static final Class<?> CLASS_MAP = Map.class, CLASS_LIST = List.class, CLASS_SET = Set.class, CLASS_NUMBER = Number.class;
@@ -74,26 +87,43 @@ public final class Arg {
     public static final double DEFAULT_D = 0D;
     private static final Map<Class<?>, BasicType> BASIC_TYPE_INFO;
     private static final Map<Class<?>, ArrayType<?, ?, ?>> ARRAY_TYPE_INFO;
-    private static final BasicType NULL_BASIC_TYPE = new BasicType(-1, null, null, null);
+    private static final BasicType NULL_BASIC_TYPE = new BasicType(-1, null, null, null, null, null, null, null, null);
 
     static {
+        BasicType booleanBasicType = new BasicType(0, CLASS_Z, CLASS_WZ, DEFAULT_Z, Boolean::parseBoolean, Unsafe::getBoolean, Unsafe::getBooleanVolatile,
+                (u, o, i, v) -> u.putBoolean(o, i, (boolean) v), (u, o, i, v) -> u.putBooleanVolatile(o, i, (boolean) v));
+        BasicType charBasicType = new BasicType(0, CLASS_C, CLASS_WC, DEFAULT_C, s -> s.isEmpty() ? '\0' : s.charAt(0), Unsafe::getChar, Unsafe::getCharVolatile,
+                (u, o, i, v) -> u.putChar(o, i, (char) v), (u, o, i, v) -> u.putCharVolatile(o, i, (char) v));
+        BasicType byteBasicType = new BasicType(1, CLASS_B, CLASS_WB, DEFAULT_B, Byte::parseByte, Unsafe::getByte, Unsafe::getByteVolatile,
+                (u, o, i, v) -> u.putByte(o, i, (byte) v), (u, o, i, v) -> u.putByteVolatile(o, i, (byte) v));
+        BasicType shortBasicType = new BasicType(2, CLASS_S, CLASS_WS, DEFAULT_S, Short::parseShort, Unsafe::getShort, Unsafe::getShortVolatile,
+                (u, o, i, v) -> u.putShort(o, i, (short) v), (u, o, i, v) -> u.putShortVolatile(o, i, (short) v));
+        BasicType intBasicType = new BasicType(3, CLASS_I, CLASS_WI, DEFAULT_I, Integer::parseInt, Unsafe::getInt, Unsafe::getIntVolatile,
+                (u, o, i, v) -> u.putInt(o, i, (int) v), (u, o, i, v) -> u.putIntVolatile(o, i, (int) v));
+        BasicType longBasicType = new BasicType(4, CLASS_J, CLASS_WJ, DEFAULT_J, Long::parseLong, Unsafe::getLong, Unsafe::getLongVolatile,
+                (u, o, i, v) -> u.putLong(o, i, (long) v), (u, o, i, v) -> u.putLongVolatile(o, i, (long) v));
+        BasicType floatBasicType = new BasicType(5, CLASS_F, CLASS_WF, DEFAULT_F, Float::parseFloat, Unsafe::getFloat, Unsafe::getFloatVolatile,
+                (u, o, i, v) -> u.putFloat(o, i, (float) v), (u, o, i, v) -> u.putFloatVolatile(o, i, (float) v));
+        BasicType doubleBasicType = new BasicType(6, CLASS_D, CLASS_WD, DEFAULT_D, Double::parseDouble, Unsafe::getDouble, Unsafe::getDoubleVolatile,
+                (u, o, i, v) -> u.putDouble(o, i, (double) v), (u, o, i, v) -> u.putDoubleVolatile(o, i, (double) v));
+
         Map<Class<?>, BasicType> basicTypeInfo = new HashMap<>(16, 1);
-        basicTypeInfo.put(CLASS_Z, new BasicType(0, CLASS_WZ, DEFAULT_Z, Boolean::parseBoolean));
-        basicTypeInfo.put(CLASS_WZ, new BasicType(0, CLASS_Z, DEFAULT_Z, Boolean::parseBoolean));
-        basicTypeInfo.put(CLASS_C, new BasicType(0, CLASS_WC, DEFAULT_C, s -> s.isEmpty() ? '\0' : s.charAt(0)));
-        basicTypeInfo.put(CLASS_WC, new BasicType(0, CLASS_C, DEFAULT_C, s -> s.isEmpty() ? '\0' : s.charAt(0)));
-        basicTypeInfo.put(CLASS_B, new BasicType(1, CLASS_WB, DEFAULT_B, Byte::parseByte));
-        basicTypeInfo.put(CLASS_WB, new BasicType(1, CLASS_B, DEFAULT_B, Byte::parseByte));
-        basicTypeInfo.put(CLASS_S, new BasicType(2, CLASS_WS, DEFAULT_S, Short::parseShort));
-        basicTypeInfo.put(CLASS_WS, new BasicType(2, CLASS_S, DEFAULT_S, Short::parseShort));
-        basicTypeInfo.put(CLASS_I, new BasicType(3, CLASS_WI, DEFAULT_I, Integer::parseInt));
-        basicTypeInfo.put(CLASS_WI, new BasicType(3, CLASS_I, DEFAULT_I, Integer::parseInt));
-        basicTypeInfo.put(CLASS_J, new BasicType(4, CLASS_WJ, DEFAULT_J, Long::parseLong));
-        basicTypeInfo.put(CLASS_WJ, new BasicType(4, CLASS_J, DEFAULT_J, Long::parseLong));
-        basicTypeInfo.put(CLASS_F, new BasicType(5, CLASS_WF, DEFAULT_F, Float::parseFloat));
-        basicTypeInfo.put(CLASS_WF, new BasicType(5, CLASS_F, DEFAULT_F, Float::parseFloat));
-        basicTypeInfo.put(CLASS_D, new BasicType(6, CLASS_WD, DEFAULT_D, Double::parseDouble));
-        basicTypeInfo.put(CLASS_WD, new BasicType(6, CLASS_D, DEFAULT_D, Double::parseDouble));
+        basicTypeInfo.put(CLASS_Z, booleanBasicType);
+        basicTypeInfo.put(CLASS_WZ, booleanBasicType);
+        basicTypeInfo.put(CLASS_C, charBasicType);
+        basicTypeInfo.put(CLASS_WC, charBasicType);
+        basicTypeInfo.put(CLASS_B, byteBasicType);
+        basicTypeInfo.put(CLASS_WB, byteBasicType);
+        basicTypeInfo.put(CLASS_S, shortBasicType);
+        basicTypeInfo.put(CLASS_WS, shortBasicType);
+        basicTypeInfo.put(CLASS_I, intBasicType);
+        basicTypeInfo.put(CLASS_WI, intBasicType);
+        basicTypeInfo.put(CLASS_J, longBasicType);
+        basicTypeInfo.put(CLASS_WJ, longBasicType);
+        basicTypeInfo.put(CLASS_F, floatBasicType);
+        basicTypeInfo.put(CLASS_WF, floatBasicType);
+        basicTypeInfo.put(CLASS_D, doubleBasicType);
+        basicTypeInfo.put(CLASS_WD, doubleBasicType);
         BASIC_TYPE_INFO = Collections.unmodifiableMap(basicTypeInfo);
 
         ArrayType<boolean[], Boolean[], Boolean> booleanArrayType = new ArrayType<>(boolean[]::new, Boolean[]::new, a -> a.length, (a, i) -> a[i], (a, i, e) -> {
@@ -221,23 +251,44 @@ public final class Arg {
         ARRAY_TYPE_INFO = Collections.unmodifiableMap(arrayTypeInfo);
     }
 
+    @FunctionalInterface
+    private interface VMGetter {
+        Object get(Unsafe unsafe, Object object, long offset);
+    }
+
+    @FunctionalInterface
+    private interface VMSetter {
+        void set(Unsafe unsafe, Object object, long offset, Object value);
+    }
+
     private static class BasicType {
         private final int level;
-        private final Class<?> toType;
+        private final Class<?> pt;
+        private final Class<?> wt;
         private final Object defaultValue;
         private final BiFunction<String, String, Object> converter;
+        private final BiFunction<Object, Long, Object> vmGetter;
+        private final BiFunction<Object, Long, Object> vmVolatileGetter;
+        private final ThConsumer<Object, Long, Object> vmSetter;
+        private final ThConsumer<Object, Long, Object> vmVolatileSetter;
 
-        private BasicType(int level, Class<?> toType, Object defaultValue, Function<String, Object> converter) {
+        private BasicType(int level, Class<?> pt, Class<?> wt, Object defaultValue, Function<String, Object> converter,
+                          VMGetter vmGetter, VMGetter vmVolatileGetter, VMSetter vmSetter, VMSetter vmVolatileSetter) {
             this.level = level;
-            this.toType = toType;
+            this.pt = pt;
+            this.wt = wt;
             this.defaultValue = defaultValue;
             this.converter = converter == null ? null : (value, main) -> {
                 try {
                     return converter.apply(value);
                 } catch (Throwable e) {
-                    throw new IllegalArgumentException(String.format("The '%s' value was set to '%s', must be an %s", main, value, BASIC_TYPE_INFO.get(toType).toType.getTypeName()), e);
+                    throw new IllegalArgumentException(String.format("The '%s' value was set to '%s', must be an %s", main, value, pt.getTypeName()), e);
                 }
             };
+            this.vmGetter = vmGetter == null ? null : (object, offset) -> vmGetter.get(safeGetUnsafe(true), object, offset);
+            this.vmVolatileGetter = vmVolatileGetter == null ? null : (object, offset) -> vmVolatileGetter.get(safeGetUnsafe(true), object, offset);
+            this.vmSetter = vmSetter == null ? null : (object, offset, value) -> vmSetter.set(safeGetUnsafe(true), object, offset, value);
+            this.vmVolatileSetter = vmVolatileGetter == null ? null : (object, offset, value) -> vmVolatileSetter.set(safeGetUnsafe(true), object, offset, value);
         }
     }
 
@@ -350,10 +401,10 @@ public final class Arg {
     public static Class<?> baseTypeConversion(Class<?> input, boolean wrap) {
         Class<?> r = null;
         if (input.isPrimitive()) {
-            if (wrap) r = BASIC_TYPE_INFO.getOrDefault(input, NULL_BASIC_TYPE).toType;
+            if (wrap) r = BASIC_TYPE_INFO.getOrDefault(input, NULL_BASIC_TYPE).wt;
         } else {
             if (!wrap) {
-                r = BASIC_TYPE_INFO.getOrDefault(input, NULL_BASIC_TYPE).toType;
+                r = BASIC_TYPE_INFO.getOrDefault(input, NULL_BASIC_TYPE).pt;
                 if (r == null && Log.isEnabledDebug()) {
                     Log.debug("Not a known primitive wrapper class: " + input);
                 }
@@ -771,9 +822,9 @@ public final class Arg {
         } else if (inputArray || matchArray) {
             return false;
         } else {
-            boolean matchPrimitive = targetType.isPrimitive();
+            boolean targetPrimitive = targetType.isPrimitive();
             boolean inputPrimitive = inputType.isPrimitive();
-            if (matchPrimitive) {
+            if (targetPrimitive) {
                 int matchCompatibility = BASIC_TYPE_INFO.get(targetType).level;
                 int inputCompatibility = BASIC_TYPE_INFO.getOrDefault(inputType, NULL_BASIC_TYPE).level;
                 if (inputCompatibility < 0) return false;
@@ -786,7 +837,7 @@ public final class Arg {
                 }
                 return false;
             } else if (inputPrimitive) {
-                return targetType.isAssignableFrom(BASIC_TYPE_INFO.get(inputType).toType);
+                return targetType.isAssignableFrom(BASIC_TYPE_INFO.get(inputType).wt);
             } else {
                 return targetType.isAssignableFrom(inputType);
             }
@@ -1641,6 +1692,134 @@ public final class Arg {
                 throw new IllegalArgumentException("Error to parse '" + value + "' to " + type.getSimpleName());
             } else {
                 return defaultValue;
+            }
+        }
+    }
+
+    /**
+     * 对 {@link Unsafe} 的静态访问和用于执行低级别、不安全操作的便捷实用方法。
+     *
+     * @return {@link Unsafe}
+     */
+    public static Unsafe safeGetUnsafe() {
+        return safeGetUnsafe(true);
+    }
+
+    /**
+     * 对 {@link Unsafe} 的静态访问和用于执行低级别、不安全操作的便捷实用方法。
+     *
+     * @return {@link Unsafe}
+     */
+    public static Unsafe safeGetUnsafe(boolean isThrow) {
+        if (UNSAFE_INSTANCE != null) return UNSAFE_INSTANCE;
+        return AccessController.doPrivileged((PrivilegedAction<Unsafe>) () -> {
+            try {
+                Field field = Com.safeGetField(false, false, UNSAFE_CLASS, "theUnsafe");
+                if (field == null) {
+                    field = Com.safeGetField(false, false, UNSAFE_CLASS, "THE_ONE");
+                }
+                if (field == null) {
+                    return Com.newInstance(UNSAFE_CLASS);
+                }
+                return (Unsafe) field.get(null);
+            } catch (Throwable e) {
+                return Log.errorOrThrowError(isThrow, e, "Failed to load sun.misc.Unsafe");
+            }
+        });
+    }
+
+    /**
+     * 返回给定对象字段的位置。
+     *
+     * @param clazz     包含字段的类
+     * @param fieldName 字段的名称
+     * @return 字段的地址偏移量
+     */
+    public static long safeGetObjectFieldOffset(Class<?> clazz, String fieldName) {
+        return safeGetObjectFieldOffset(true, clazz, fieldName);
+    }
+
+    /**
+     * 返回给定对象字段的位置。
+     *
+     * @param isThrow   是否抛出移除
+     * @param clazz     包含字段的类
+     * @param fieldName 字段的名称
+     * @return 字段的地址偏移量
+     */
+    public static long safeGetObjectFieldOffset(boolean isThrow, Class<?> clazz, String fieldName) {
+        return UNSAFE_INSTANCE.objectFieldOffset(Com.safeGetField(isThrow, false, clazz, fieldName));
+    }
+
+    /**
+     * 返回给定静态字段的位置。
+     *
+     * @param clazz     包含字段的类
+     * @param fieldName 字段的名称
+     * @return 字段的地址偏移量
+     */
+    public static long safeGetStaticFieldOffset(Class<?> clazz, String fieldName) {
+        return safeGetStaticFieldOffset(true, clazz, fieldName);
+    }
+
+    /**
+     * 返回给定静态字段的位置。
+     *
+     * @param isThrow   是否抛出移除
+     * @param clazz     包含字段的类
+     * @param fieldName 字段的名称
+     * @return 字段的地址偏移量
+     */
+    public static long safeGetStaticFieldOffset(boolean isThrow, Class<?> clazz, String fieldName) {
+        return UNSAFE_INSTANCE.staticFieldOffset(Com.safeGetField(isThrow, false, clazz, fieldName));
+    }
+
+    /**
+     * 通过地址直接获取值
+     *
+     * @param object     对象
+     * @param address    地址
+     * @param type       值类型
+     * @param isVolatile 是否同步
+     * @param <T>        值类型
+     * @return 返回值
+     * @see Unsafe
+     */
+    public static <T> T safeGetValueByAddress(Object object, long address, Class<T> type, boolean isVolatile) {
+        BasicType bt = BASIC_TYPE_INFO.get(type);
+        Object result;
+        if (bt != null) {
+            result = (isVolatile ? bt.vmVolatileGetter : bt.vmGetter).apply(object, address);
+        } else {
+            if (isVolatile) {
+                result = Arg.safeGetUnsafe(true).getObjectVolatile(object, address);
+            } else {
+                result = Arg.safeGetUnsafe(true).getObject(object, address);
+            }
+        }
+        return type.cast(result);
+    }
+
+    /**
+     * 通过地址直接设置值
+     *
+     * @param object     对象
+     * @param address    地址
+     * @param type       值类型
+     * @param value      值
+     * @param isVolatile 是否同步
+     * @param <T>        值类型
+     * @see Unsafe
+     */
+    public static <T> void safeSetValueByAddress(Object object, long address, Class<T> type, T value, boolean isVolatile) {
+        BasicType bt = BASIC_TYPE_INFO.get(type);
+        if (bt != null) {
+            (isVolatile ? bt.vmVolatileSetter : bt.vmSetter).accept(object, address, value);
+        } else {
+            if (isVolatile) {
+                Arg.safeGetUnsafe(true).putObjectVolatile(object, address, value);
+            } else {
+                Arg.safeGetUnsafe(true).putObject(object, address, value);
             }
         }
     }

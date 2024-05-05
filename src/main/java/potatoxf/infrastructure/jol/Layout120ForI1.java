@@ -1,6 +1,6 @@
 package potatoxf.infrastructure.jol;
 
-import potatoxf.infrastructure.Com;
+import potatoxf.infrastructure.Arg;
 
 /**
  * 强制执行内存布局，通过填充写入计数来避免错误共享。
@@ -10,18 +10,18 @@ import potatoxf.infrastructure.Com;
  * @author potatoxf
  */
 public class Layout120ForI1 extends PaddingHeader120 {
-    private static final long OFFSET_VALUE_1 = Com.safeGetObjectFieldOffset(Layout120ForI1.class, "value1");
+    private static final long OFFSET_VALUE_1 = Arg.safeGetObjectFieldOffset(Layout120ForI1.class, "value1");
     private volatile int value1;
 
     protected final int value1() {
-        return Com.safeGetUnsafe().getIntVolatile(this, OFFSET_VALUE_1);
+        return Arg.safeGetUnsafe().getIntVolatile(this, OFFSET_VALUE_1);
     }
 
     protected final void value1(int count) {
-        Com.safeGetUnsafe().putOrderedInt(this, OFFSET_VALUE_1, count);
+        Arg.safeGetUnsafe().putOrderedInt(this, OFFSET_VALUE_1, count);
     }
 
     protected final boolean value1(int expect, int update) {
-        return Com.safeGetUnsafe().compareAndSwapInt(this, OFFSET_VALUE_1, expect, update);
+        return Arg.safeGetUnsafe().compareAndSwapInt(this, OFFSET_VALUE_1, expect, update);
     }
 }

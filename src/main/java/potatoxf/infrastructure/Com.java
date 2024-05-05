@@ -1,14 +1,10 @@
 package potatoxf.infrastructure;
 
 
-import sun.misc.Unsafe;
-
 import java.io.Closeable;
 import java.io.Flushable;
 import java.io.IOException;
 import java.lang.reflect.*;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.Locale;
 import java.util.MissingResourceException;
 import java.util.Objects;
@@ -27,14 +23,6 @@ import java.util.function.Supplier;
  */
 @SuppressWarnings("unchecked")
 public final class Com {
-    /**
-     * The Unsafe class
-     */
-    private static final Class<Unsafe> UNSAFE_CLASS = Unsafe.class;
-    /**
-     * The Unsafe instance
-     */
-    private static final Unsafe UNSAFE_INSTANCE = safeGetUnsafe();
     /**
      * A reference to Throwable initCause method
      */
@@ -371,84 +359,6 @@ public final class Com {
                 // ignore
             }
         }
-    }
-
-    /**
-     * 对 {@link Unsafe} 的静态访问和用于执行低级别、不安全操作的便捷实用方法。
-     *
-     * @return {@link Unsafe}
-     */
-    public static Unsafe safeGetUnsafe() {
-        return Com.safeGetUnsafe(true);
-    }
-
-    /**
-     * 对 {@link Unsafe} 的静态访问和用于执行低级别、不安全操作的便捷实用方法。
-     *
-     * @return {@link Unsafe}
-     */
-    public static Unsafe safeGetUnsafe(boolean isThrow) {
-        if (UNSAFE_INSTANCE != null) return UNSAFE_INSTANCE;
-        return AccessController.doPrivileged((PrivilegedAction<Unsafe>) () -> {
-            try {
-                Field field = safeGetField(false, false, UNSAFE_CLASS, "theUnsafe");
-                if (field == null) {
-                    field = safeGetField(false, false, UNSAFE_CLASS, "THE_ONE");
-                }
-                if (field == null) {
-                    return newInstance(UNSAFE_CLASS);
-                }
-                return (Unsafe) field.get(null);
-            } catch (Throwable e) {
-                return Log.errorOrThrowError(isThrow, e, "Failed to load sun.misc.Unsafe");
-            }
-        });
-    }
-
-    /**
-     * 返回给定对象字段的位置。
-     *
-     * @param clazz     包含字段的类
-     * @param fieldName 字段的名称
-     * @return 字段的地址偏移量
-     */
-    public static long safeGetObjectFieldOffset(Class<?> clazz, String fieldName) {
-        return Com.safeGetObjectFieldOffset(true, clazz, fieldName);
-    }
-
-    /**
-     * 返回给定对象字段的位置。
-     *
-     * @param isThrow   是否抛出移除
-     * @param clazz     包含字段的类
-     * @param fieldName 字段的名称
-     * @return 字段的地址偏移量
-     */
-    public static long safeGetObjectFieldOffset(boolean isThrow, Class<?> clazz, String fieldName) {
-        return UNSAFE_INSTANCE.objectFieldOffset(Com.safeGetField(isThrow, false, clazz, fieldName));
-    }
-
-    /**
-     * 返回给定静态字段的位置。
-     *
-     * @param clazz     包含字段的类
-     * @param fieldName 字段的名称
-     * @return 字段的地址偏移量
-     */
-    public static long safeGetStaticFieldOffset(Class<?> clazz, String fieldName) {
-        return Com.safeGetStaticFieldOffset(true, clazz, fieldName);
-    }
-
-    /**
-     * 返回给定静态字段的位置。
-     *
-     * @param isThrow   是否抛出移除
-     * @param clazz     包含字段的类
-     * @param fieldName 字段的名称
-     * @return 字段的地址偏移量
-     */
-    public static long safeGetStaticFieldOffset(boolean isThrow, Class<?> clazz, String fieldName) {
-        return UNSAFE_INSTANCE.staticFieldOffset(Com.safeGetField(isThrow, false, clazz, fieldName));
     }
 
     public static <T> Class<T> safeGetClass(Class<?> input) {
