@@ -1,9 +1,6 @@
 package potatoxf.infrastructure;
 
-import potatoxf.infrastructure.function.ArrayElementGetter;
-import potatoxf.infrastructure.function.ArrayElementSetter;
-import potatoxf.infrastructure.function.ArrayLengthGetter;
-import potatoxf.infrastructure.function.ThConsumer;
+import potatoxf.infrastructure.function.*;
 import sun.misc.Unsafe;
 
 import java.io.File;
@@ -126,110 +123,122 @@ public final class Arg {
         basicTypeInfo.put(CLASS_WD, doubleBasicType);
         BASIC_TYPE_INFO = Collections.unmodifiableMap(basicTypeInfo);
 
-        ArrayType<boolean[], Boolean[], Boolean> booleanArrayType = new ArrayType<>(boolean[]::new, Boolean[]::new, a -> a.length, (a, i) -> a[i], (a, i, e) -> {
-            Boolean old = a[i];
-            a[i] = e;
-            return old;
-        }, a -> {
-            Boolean[] r = new Boolean[a.length];
-            for (int i = 0; i < a.length; i++) r[i] = a[i];
-            return r;
-        }, a -> {
-            boolean[] r = new boolean[a.length];
-            for (int i = 0; i < a.length; i++) r[i] = a[i] == null ? Arg.baseTypeDefaultValue(boolean.class) : a[i];
-            return r;
-        });
-        ArrayType<char[], Character[], Character> characterArrayType = new ArrayType<>(char[]::new, Character[]::new, a -> a.length, (a, i) -> a[i], (a, i, e) -> {
-            Character old = a[i];
-            a[i] = e;
-            return old;
-        }, a -> {
-            Character[] r = new Character[a.length];
-            for (int i = 0; i < a.length; i++) r[i] = a[i];
-            return r;
-        }, a -> {
-            char[] r = new char[a.length];
-            for (int i = 0; i < a.length; i++) r[i] = a[i] == null ? Arg.baseTypeDefaultValue(char.class) : a[i];
-            return r;
-        });
-        ArrayType<byte[], Byte[], Byte> byteArrayType = new ArrayType<>(byte[]::new, Byte[]::new, a -> a.length, (a, i) -> a[i], (a, i, e) -> {
-            Byte old = a[i];
-            a[i] = e;
-            return old;
-        }, a -> {
-            Byte[] r = new Byte[a.length];
-            for (int i = 0; i < a.length; i++) r[i] = a[i];
-            return r;
-        }, a -> {
-            byte[] r = new byte[a.length];
-            for (int i = 0; i < a.length; i++) r[i] = a[i] == null ? Arg.baseTypeDefaultValue(byte.class) : a[i];
-            return r;
-        });
-        ArrayType<short[], Short[], Short> shortArrayType = new ArrayType<>(short[]::new, Short[]::new, a -> a.length, (a, i) -> a[i], (a, i, e) -> {
-            Short old = a[i];
-            a[i] = e;
-            return old;
-        }, a -> {
-            Short[] r = new Short[a.length];
-            for (int i = 0; i < a.length; i++) r[i] = a[i];
-            return r;
-        }, a -> {
-            short[] r = new short[a.length];
-            for (int i = 0; i < a.length; i++) r[i] = a[i] == null ? Arg.baseTypeDefaultValue(short.class) : a[i];
-            return r;
-        });
-        ArrayType<int[], Integer[], Integer> integerArrayType = new ArrayType<>(int[]::new, Integer[]::new, a -> a.length, (a, i) -> a[i], (a, i, e) -> {
-            Integer old = a[i];
-            a[i] = e;
-            return old;
-        }, a -> {
-            Integer[] r = new Integer[a.length];
-            for (int i = 0; i < a.length; i++) r[i] = a[i];
-            return r;
-        }, a -> {
-            int[] r = new int[a.length];
-            for (int i = 0; i < a.length; i++) r[i] = a[i] == null ? Arg.baseTypeDefaultValue(int.class) : a[i];
-            return r;
-        });
-        ArrayType<long[], Long[], Long> longArrayType = new ArrayType<>(long[]::new, Long[]::new, a -> a.length, (a, i) -> a[i], (a, i, e) -> {
-            Long old = a[i];
-            a[i] = e;
-            return old;
-        }, a -> {
-            Long[] r = new Long[a.length];
-            for (int i = 0; i < a.length; i++) r[i] = a[i];
-            return r;
-        }, a -> {
-            long[] r = new long[a.length];
-            for (int i = 0; i < a.length; i++) r[i] = a[i] == null ? Arg.baseTypeDefaultValue(long.class) : a[i];
-            return r;
-        });
-        ArrayType<float[], Float[], Float> floatArrayType = new ArrayType<>(float[]::new, Float[]::new, a -> a.length, (a, i) -> a[i], (a, i, e) -> {
-            Float old = a[i];
-            a[i] = e;
-            return old;
-        }, a -> {
-            Float[] r = new Float[a.length];
-            for (int i = 0; i < a.length; i++) r[i] = a[i];
-            return r;
-        }, a -> {
-            float[] r = new float[a.length];
-            for (int i = 0; i < a.length; i++) r[i] = a[i] == null ? Arg.baseTypeDefaultValue(float.class) : a[i];
-            return r;
-        });
-        ArrayType<double[], Double[], Double> doubleArrayType = new ArrayType<>(double[]::new, Double[]::new, a -> a.length, (a, i) -> a[i], (a, i, e) -> {
-            Double old = a[i];
-            a[i] = e;
-            return old;
-        }, a -> {
-            Double[] r = new Double[a.length];
-            for (int i = 0; i < a.length; i++) r[i] = a[i];
-            return r;
-        }, a -> {
-            double[] r = new double[a.length];
-            for (int i = 0; i < a.length; i++) r[i] = a[i] == null ? Arg.baseTypeDefaultValue(double.class) : a[i];
-            return r;
-        });
+        ArrayType<boolean[], Boolean[], Boolean> booleanArrayType = new ArrayType<>(boolean[]::new, Boolean[]::new,
+                a -> a.length, (a, i) -> a[i], (a, i, e) -> a[i] = e,
+                a -> a.length, (a, i) -> a[i], (a, i, e) -> a[i] = e,
+                a -> {
+                    Boolean[] r = new Boolean[a.length];
+                    for (int i = 0; i < a.length; i++) r[i] = a[i];
+                    return r;
+                },
+                a -> {
+                    boolean[] r = new boolean[a.length];
+                    for (int i = 0; i < a.length; i++)
+                        r[i] = a[i] == null ? Arg.baseTypeDefaultValue(boolean.class) : a[i];
+                    return r;
+                });
+        ArrayType<char[], Character[], Character> characterArrayType = new ArrayType<>(char[]::new, Character[]::new,
+                a -> a.length, (a, i) -> a[i], (a, i, e) -> a[i] = e,
+                a -> a.length, (a, i) -> a[i], (a, i, e) -> a[i] = e,
+                a -> {
+                    Character[] r = new Character[a.length];
+                    for (int i = 0; i < a.length; i++) r[i] = a[i];
+                    return r;
+                },
+                a -> {
+                    char[] r = new char[a.length];
+                    for (int i = 0; i < a.length; i++)
+                        r[i] = a[i] == null ? Arg.baseTypeDefaultValue(char.class) : a[i];
+                    return r;
+                });
+        ArrayType<byte[], Byte[], Byte> byteArrayType = new ArrayType<>(byte[]::new, Byte[]::new,
+                a -> a.length, (a, i) -> a[i], (a, i, e) -> a[i] = e,
+                a -> a.length, (a, i) -> a[i], (a, i, e) -> a[i] = e,
+                a -> {
+                    Byte[] r = new Byte[a.length];
+                    for (int i = 0; i < a.length; i++) r[i] = a[i];
+                    return r;
+                },
+                a -> {
+                    byte[] r = new byte[a.length];
+                    for (int i = 0; i < a.length; i++)
+                        r[i] = a[i] == null ? Arg.baseTypeDefaultValue(byte.class) : a[i];
+                    return r;
+                });
+        ArrayType<short[], Short[], Short> shortArrayType = new ArrayType<>(short[]::new, Short[]::new,
+                a -> a.length, (a, i) -> a[i], (a, i, e) -> a[i] = e,
+                a -> a.length, (a, i) -> a[i], (a, i, e) -> a[i] = e,
+                a -> {
+                    Short[] r = new Short[a.length];
+                    for (int i = 0; i < a.length; i++) r[i] = a[i];
+                    return r;
+                },
+                a -> {
+                    short[] r = new short[a.length];
+                    for (int i = 0; i < a.length; i++)
+                        r[i] = a[i] == null ? Arg.baseTypeDefaultValue(short.class) : a[i];
+                    return r;
+                });
+        ArrayType<int[], Integer[], Integer> integerArrayType = new ArrayType<>(int[]::new, Integer[]::new,
+                a -> a.length, (a, i) -> a[i], (a, i, e) -> a[i] = e,
+                a -> a.length, (a, i) -> a[i], (a, i, e) -> a[i] = e,
+                a -> {
+                    Integer[] r = new Integer[a.length];
+                    for (int i = 0; i < a.length; i++) r[i] = a[i];
+                    return r;
+                },
+                a -> {
+                    int[] r = new int[a.length];
+                    for (int i = 0; i < a.length; i++) r[i] = a[i] == null ? Arg.baseTypeDefaultValue(int.class) : a[i];
+                    return r;
+                });
+        ArrayType<long[], Long[], Long> longArrayType = new ArrayType<>(long[]::new, Long[]::new,
+                a -> a.length, (a, i) -> a[i], (a, i, e) -> a[i] = e,
+                a -> a.length, (a, i) -> a[i], (a, i, e) -> a[i] = e,
+                a -> {
+                    Long[] r = new Long[a.length];
+                    for (int i = 0; i < a.length; i++) r[i] = a[i];
+                    return r;
+                },
+                a -> {
+                    long[] r = new long[a.length];
+                    for (int i = 0; i < a.length; i++)
+                        r[i] = a[i] == null ? Arg.baseTypeDefaultValue(long.class) : a[i];
+                    return r;
+                });
+        ArrayType<float[], Float[], Float> floatArrayType = new ArrayType<>(float[]::new, Float[]::new,
+                a -> a.length, (a, i) -> a[i], (a, i, e) -> a[i] = e,
+                a -> a.length, (a, i) -> a[i], (a, i, e) -> a[i] = e,
+                a -> {
+                    Float[] r = new Float[a.length];
+                    for (int i = 0; i < a.length; i++) r[i] = a[i];
+                    return r;
+                },
+                a -> {
+                    float[] r = new float[a.length];
+                    for (int i = 0; i < a.length; i++)
+                        r[i] = a[i] == null ? Arg.baseTypeDefaultValue(float.class) : a[i];
+                    return r;
+                });
+        ArrayType<double[], Double[], Double> doubleArrayType = new ArrayType<>(double[]::new, Double[]::new,
+                a -> a.length, (a, i) -> a[i], (a, i, e) -> a[i] = e,
+                a -> a.length, (a, i) -> a[i], (a, i, e) -> a[i] = e,
+                a -> {
+                    Double[] r = new Double[a.length];
+                    for (int i = 0; i < a.length; i++) r[i] = a[i];
+                    return r;
+                },
+                a -> {
+                    double[] r = new double[a.length];
+                    for (int i = 0; i < a.length; i++)
+                        r[i] = a[i] == null ? Arg.baseTypeDefaultValue(double.class) : a[i];
+                    return r;
+                });
+        ArrayType<Object[], Object[], Object> objectArrayType = new ArrayType<>(Object[]::new, Object[]::new,
+                a -> a.length, (a, i) -> a[i], (a, i, e) -> a[i] = e,
+                a -> a.length, (a, i) -> a[i], (a, i, e) -> a[i] = e,
+                a -> a, a -> a);
+
         Map<Class<?>, ArrayType<?, ?, ?>> arrayTypeInfo = new HashMap<>(16, 1);
         arrayTypeInfo.put(CLASSES_Z, booleanArrayType);
         arrayTypeInfo.put(CLASSES_WZ, booleanArrayType);
@@ -247,7 +256,7 @@ public final class Arg {
         arrayTypeInfo.put(CLASSES_WF, floatArrayType);
         arrayTypeInfo.put(CLASSES_D, doubleArrayType);
         arrayTypeInfo.put(CLASSES_WD, doubleArrayType);
-        arrayTypeInfo.put(CLASSES_OBJECT, new ArrayType<>(Object[]::new, Object[]::new, a -> a.length, (a, i) -> a[i], (a, i, e) -> a[i] = e, a -> a, a -> a));
+        arrayTypeInfo.put(CLASSES_OBJECT, objectArrayType);
         ARRAY_TYPE_INFO = Collections.unmodifiableMap(arrayTypeInfo);
     }
 
@@ -295,23 +304,54 @@ public final class Arg {
     private static class ArrayType<P, W, E> {
         private final IntFunction<P> pn;
         private final IntFunction<W> wn;
-        private final ArrayLengthGetter<P> length;
-        private final ArrayElementGetter<P, E> getter;
-        private final ArrayElementSetter<P, E> setter;
+        private final ArrayLengthGetter<P> pl;
+        private final ArrayLengthGetter<W> wl;
+        private final ArrayElementGetter<P, E> pg;
+        private final ArrayElementSetter<P, E> ps;
+        private final ArrayElementGetter<W, E> wg;
+        private final ArrayElementSetter<W, E> ws;
         private final Function<P, W> pc;
         private final Function<W, P> wc;
+        private final ArrayResizor<P> pr;
+        private final ArrayResizor<W> wr;
 
         private ArrayType(IntFunction<P> pn, IntFunction<W> wn,
-                          ArrayLengthGetter<P> length,
-                          ArrayElementGetter<P, E> getter,
-                          ArrayElementSetter<P, E> setter, Function<P, W> pc, Function<W, P> wc) {
+                          ArrayLengthGetter<P> pl, ArrayElementGetter<P, E> pg, ArrayElementSetter<P, E> ps,
+                          ArrayLengthGetter<W> wl, ArrayElementGetter<W, E> wg, ArrayElementSetter<W, E> ws,
+                          Function<P, W> pc, Function<W, P> wc) {
             this.pn = pn;
             this.wn = wn;
-            this.length = length;
-            this.getter = getter;
-            this.setter = setter;
+
+            this.pl = pl;
+            this.pg = pg;
+            this.ps = ps;
+
+            this.wl = wl;
+            this.wg = wg;
+            this.ws = ws;
+
             this.pc = pc;
             this.wc = wc;
+            this.pr = resizor(pn, pl);
+            this.wr = resizor(wn, wl);
+        }
+
+        private <A> ArrayResizor<A> resizor(IntFunction<A> creator, ArrayLengthGetter<A> lengthGetter) {
+            return (array, capacity, size) -> {
+                final int min = 4, max = 1 << 29;
+                if (capacity > max / 3) capacity = max;
+                if (capacity <= 2 * min / 3) capacity = min;
+                capacity = Integer.highestOneBit(capacity + (capacity << 1));
+                if (array == null) creator.apply(capacity);
+                int oldLength = lengthGetter.apply(array);
+                int newLength = capacity * 2;
+                if (oldLength == 2 * max) { // can't expand any further
+                    if (size >= max - 1) {
+                        throw new IllegalStateException("Capacity exhausted.");
+                    }
+                }
+                return oldLength >= newLength ? array : creator.apply(newLength);
+            };
         }
     }
 
@@ -320,7 +360,7 @@ public final class Arg {
             throw new IllegalArgumentException(array.getName() + " is not an array class");
         }
         if (size < 0) size = 0;
-        Object arrayType = ARRAY_TYPE_INFO.get(array);
+        Object arrayType = arrayType(array);
         if (arrayType != null) {
             if (array.getComponentType().isPrimitive()) {
                 //noinspection unchecked
@@ -335,53 +375,58 @@ public final class Arg {
         }
     }
 
+    public static <A> A arrayResize(A array, int capacity, int size) {
+        Class<?> k = array.getClass();
+        Object arrayType = arrayType(k);
+        if (k.getComponentType().isPrimitive()) {
+            //noinspection unchecked
+            return ((ArrayType<A, Object, Object>) arrayType).pr.apply(array, capacity, size);
+        } else {
+            //noinspection unchecked
+            return ((ArrayType<Object, A, Object>) arrayType).wr.apply(array, capacity, size);
+        }
+    }
+
     public static <A> int arrayLength(A array) {
         if (array == null) return 0;
         Class<?> k = array.getClass();
-        if (!k.isArray()) {
-            throw new IllegalArgumentException(k.getName() + " is not an array class");
+        Object arrayType = arrayType(k);
+        if (k.getComponentType().isPrimitive()) {
+            //noinspection unchecked
+            return ((ArrayType<A, Object, Object>) arrayType).pl.apply(array);
+        } else {
+            //noinspection unchecked
+            return ((ArrayType<Object, A, Object>) arrayType).wl.apply(array);
         }
-        Object arrayType = ARRAY_TYPE_INFO.get(k);
-        if (arrayType == null) {
-            arrayType = ARRAY_TYPE_INFO.get(CLASSES_OBJECT);
-        }
-        //noinspection unchecked
-        return ((ArrayType<Object, Object, Object>) arrayType).length.apply(array);
     }
 
     public static <A, E> E arrayElement(A array, int index) {
-        if (array == null) return null;
         Class<?> k = array.getClass();
-        if (!k.isArray()) {
-            throw new IllegalArgumentException(k.getName() + " is not an array class");
+        Object arrayType = arrayType(k);
+        if (k.getComponentType().isPrimitive()) {
+            //noinspection unchecked
+            return ((ArrayType<A, Object, E>) arrayType).pg.apply(array, index);
+        } else {
+            //noinspection unchecked
+            return ((ArrayType<Object, A, E>) arrayType).wg.apply(array, index);
         }
-        Object arrayType = ARRAY_TYPE_INFO.get(k);
-        if (arrayType == null) {
-            arrayType = ARRAY_TYPE_INFO.get(CLASSES_OBJECT);
-        }
-        //noinspection unchecked
-        return ((ArrayType<A, Object, E>) arrayType).getter.apply(array, index);
     }
 
-    public static <A, E> E arrayElement(A array, int index, E element) {
-        if (array == null) return null;
+    public static <A, E> void arrayElement(A array, int index, E element) {
         Class<?> k = array.getClass();
-        if (!k.isArray()) {
-            throw new IllegalArgumentException(k.getName() + " is not an array class");
+        Object arrayType = arrayType(k);
+        if (k.getComponentType().isPrimitive()) {
+            //noinspection unchecked
+            ((ArrayType<A, Object, E>) arrayType).ps.apply(array, index, element);
+        } else {
+            //noinspection unchecked
+            ((ArrayType<Object, A, E>) arrayType).ws.apply(array, index, element);
         }
-        Object arrayType = ARRAY_TYPE_INFO.get(k);
-        if (arrayType == null) arrayType = ARRAY_TYPE_INFO.get(CLASSES_OBJECT);
-        //noinspection unchecked
-        return ((ArrayType<A, Object, E>) arrayType).setter.apply(array, index, element);
     }
 
     public static <A, R> R arrayFlip(A array) {
         Class<?> k = array.getClass();
-        if (!k.isArray()) {
-            throw new IllegalArgumentException(k.getName() + " is not an array class");
-        }
-        Object arrayType = ARRAY_TYPE_INFO.get(k);
-        if (arrayType == null) arrayType = ARRAY_TYPE_INFO.get(CLASSES_OBJECT);
+        Object arrayType = arrayType(k);
         if (k.getComponentType().isPrimitive()) {
             //noinspection unchecked
             return ((ArrayType<A, R, Object>) arrayType).pc.apply(array);
@@ -389,6 +434,15 @@ public final class Arg {
             //noinspection unchecked
             return ((ArrayType<R, A, Object>) arrayType).wc.apply(array);
         }
+    }
+
+    private static Object arrayType(Class<?> clz) {
+        if (!clz.isArray()) {
+            throw new IllegalArgumentException(clz.getName() + " is not an array class");
+        }
+        Object arrayType = ARRAY_TYPE_INFO.get(clz);
+        if (arrayType == null) arrayType = ARRAY_TYPE_INFO.get(CLASSES_OBJECT);
+        return arrayType;
     }
 
     /**

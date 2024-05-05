@@ -15,7 +15,6 @@ public interface ArrayElementSetter<A, E> {
      * @param array   数组
      * @param index   索引
      * @param element 数组元素
-     * @return 返回原来数组元素
      */
-    E apply(A array, int index, E element);
+    void apply(A array, int index, E element);
 }
