@@ -544,4 +544,40 @@ public final class Com {
         }
         return input;
     }
+
+    private static String safeGetVMOption(String key) throws Throwable {
+        javax.management.MBeanServer server = java.lang.management.ManagementFactory.getPlatformMBeanServer();
+        javax.management.ObjectName mbean = new javax.management.ObjectName("com.sun.management:type=HotSpotDiagnostic");
+        Object vmOption = server.invoke(mbean, "getVMOption", new Object[]{key}, new String[]{"java.lang.String"});
+        return ((javax.management.openmbean.CompositeDataSupport) vmOption).get("value").toString();
+    }
+
+    public static Boolean safeGetVMOptionForCompressedOops() {
+        try {
+            String useCompressedOops = Com.safeGetVMOption("UseCompressedOops");
+            if (useCompressedOops != null) return Boolean.parseBoolean(useCompressedOops);
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    public static Boolean safeGetVMOptionForCompressedClassPointers() {
+        try {
+            String useCompressedClassPointers = Com.safeGetVMOption("UseCompressedClassPointers");
+            if (useCompressedClassPointers != null) return Boolean.parseBoolean(useCompressedClassPointers);
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    public static Integer safeGetVMOptionForObjectAlignment() {
+        if (Boolean.TRUE.equals(Com.safeGetVMOptionForCompressedOops())) {
+            try {
+                String objectAlignmentInBytes = Com.safeGetVMOption("ObjectAlignmentInBytes");
+                if (objectAlignmentInBytes != null) return Integer.parseInt(objectAlignmentInBytes);
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
+    }
 }
