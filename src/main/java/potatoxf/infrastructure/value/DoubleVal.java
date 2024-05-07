@@ -30,4 +30,24 @@ public interface DoubleVal extends AnyNumberVal<Double> {
         if (value == null) return Arg.DEFAULT_D;
         return value;
     }
+
+    /**
+     * 当前值的类型
+     *
+     * @return 返回值类型
+     */
+    @Override
+    default ValueType valueType() {
+        return ValueType.DOUBLE;
+    }
+
+    /**
+     * 判断数字是否是64位
+     *
+     * @return 如果是返回true，否则返回false
+     */
+    @Override
+    default boolean is64bit() {
+        return true;
+    }
 }

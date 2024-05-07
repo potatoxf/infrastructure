@@ -30,4 +30,14 @@ public interface LongVal extends AnyNumberVal<Long> {
         if (value == null) return Arg.DEFAULT_J;
         return value;
     }
+
+    /**
+     * 判断数字是否是64位
+     *
+     * @return 如果是返回true，否则返回false
+     */
+    @Override
+    default boolean is64bit() {
+        return true;
+    }
 }

@@ -9,7 +9,7 @@ import potatoxf.infrastructure.Arg;
  *
  * @author potatoxf
  */
-public interface CharacterVal extends AnyTypeVal<Character> {
+public interface CharacterVal extends AnyTypeVal<Character>, Value {
     /**
      * 默认构造该接口
      *
@@ -29,5 +29,15 @@ public interface CharacterVal extends AnyTypeVal<Character> {
         Character value = getValue();
         if (value == null) return Arg.DEFAULT_C;
         return value;
+    }
+
+    /**
+     * 当前值的类型
+     *
+     * @return 返回值类型
+     */
+    @Override
+    default ValueType valueType() {
+        return ValueType.STRING;
     }
 }

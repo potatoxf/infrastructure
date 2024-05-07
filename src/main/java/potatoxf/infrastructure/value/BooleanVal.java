@@ -9,7 +9,7 @@ import potatoxf.infrastructure.Arg;
  *
  * @author potatoxf
  */
-public interface BooleanVal extends AnyTypeVal<Boolean> {
+public interface BooleanVal extends Value, AnyTypeVal<Boolean> {
     /**
      * 默认构造该接口
      *
@@ -18,6 +18,16 @@ public interface BooleanVal extends AnyTypeVal<Boolean> {
      */
     static BooleanVal of(Boolean value) {
         return new BooleanValImpl(value);
+    }
+
+    /**
+     * 当前值的类型
+     *
+     * @return 返回值类型
+     */
+    @Override
+    default ValueType valueType() {
+        return ValueType.BOOLEAN;
     }
 
     /**

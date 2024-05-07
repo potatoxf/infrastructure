@@ -997,15 +997,15 @@ public final class Arg {
         return Arg.checkAndReturn(Arg.isNoNull(input), input, messageSupplier);
     }
 
-    public static void checkNoNull(Object input, Object other) {
+    public static void checkesNoNull(Object input, Object other) {
         Arg.check(Arg.isNoNull(input, other), null, "The input value must be not null");
     }
 
-    public static void checkNoNull(Object input, Object other, String messageTemplate, Object... args) {
+    public static void checkesNoNull(Object input, Object other, String messageTemplate, Object... args) {
         Arg.checkAndReturn(Arg.isNoNull(input, other), null, messageTemplate, args);
     }
 
-    public static void checkNoNull(Object input, Object other, Supplier<String> messageSupplier) {
+    public static void checkesNoNull(Object input, Object other, Supplier<String> messageSupplier) {
         Arg.checkAndReturn(Arg.isNoNull(input, other), null, messageSupplier);
     }
 

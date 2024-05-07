@@ -30,4 +30,24 @@ public interface FloatVal extends AnyNumberVal<Float> {
         if (value == null) return Arg.DEFAULT_F;
         return value;
     }
+
+    /**
+     * 当前值的类型
+     *
+     * @return 返回值类型
+     */
+    @Override
+    default ValueType valueType() {
+        return ValueType.FLOAT;
+    }
+
+    /**
+     * 判断数字是否是32位
+     *
+     * @return 如果是返回true，否则返回false
+     */
+    @Override
+    default boolean is32bit() {
+        return true;
+    }
 }

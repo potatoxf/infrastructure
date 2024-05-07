@@ -30,4 +30,24 @@ public interface ShortVal extends AnyNumberVal<Short> {
         if (value == null) return Arg.DEFAULT_S;
         return value;
     }
+
+    /**
+     * 当前值的类型
+     *
+     * @return 返回值类型
+     */
+    @Override
+    default ValueType valueType() {
+        return ValueType.SHORT;
+    }
+
+    /**
+     * 判断数字是否是16位
+     *
+     * @return 如果是返回true，否则返回false
+     */
+    @Override
+    default boolean is16bit() {
+        return true;
+    }
 }

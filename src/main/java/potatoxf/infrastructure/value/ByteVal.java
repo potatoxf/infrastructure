@@ -30,4 +30,24 @@ public interface ByteVal extends AnyNumberVal<Byte> {
         if (value == null) return Arg.DEFAULT_B;
         return value;
     }
+
+    /**
+     * 当前值的类型
+     *
+     * @return 返回值类型
+     */
+    @Override
+    default ValueType valueType() {
+        return ValueType.BYTE;
+    }
+
+    /**
+     * 判断数字是否是8位
+     *
+     * @return 如果是返回true，否则返回false
+     */
+    @Override
+    default boolean is8bit() {
+        return true;
+    }
 }

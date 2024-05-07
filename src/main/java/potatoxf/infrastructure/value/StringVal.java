@@ -7,7 +7,7 @@ package potatoxf.infrastructure.value;
  *
  * @author potatoxf
  */
-public interface StringVal extends AnyTypeVal<String> {
+public interface StringVal extends AnyTypeVal<String>, Value {
     /**
      * 默认构造该接口
      *
@@ -16,5 +16,15 @@ public interface StringVal extends AnyTypeVal<String> {
      */
     static StringVal of(String value) {
         return new StringValImpl(value);
+    }
+
+    /**
+     * 当前值的类型
+     *
+     * @return 返回值类型
+     */
+    @Override
+    default ValueType valueType() {
+        return ValueType.STRING;
     }
 }

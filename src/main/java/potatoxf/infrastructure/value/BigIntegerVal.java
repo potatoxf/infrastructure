@@ -19,4 +19,24 @@ public interface BigIntegerVal extends AnyNumberVal<BigInteger> {
     static BigIntegerVal of(BigInteger value) {
         return new BigIntegerValImpl(value);
     }
+
+    /**
+     * 当前值的类型
+     *
+     * @return 返回值类型
+     */
+    @Override
+    default ValueType valueType() {
+        return ValueType.BIG_INTEGER;
+    }
+
+    /**
+     * 判断数字是否不确定位数
+     *
+     * @return 如果是返回true，否则返回false
+     */
+    @Override
+    default boolean isExbit() {
+        return true;
+    }
 }
