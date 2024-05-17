@@ -1,6 +1,6 @@
 package potatoxf.infrastructure.value;
 
-import potatoxf.infrastructure.Arg;
+import potatoxf.api.support.Arg;
 
 /**
  * {@link Double}类型值

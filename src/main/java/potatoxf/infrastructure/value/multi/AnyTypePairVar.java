@@ -24,7 +24,7 @@ public interface AnyTypePairVar<K, V> extends AnyTypePairVal<K, V> {
      *
      * @param value {@link V}类别
      */
-    void setValue(V value);
+    V setValue(V value);
 
     /**
      * 设置key和value

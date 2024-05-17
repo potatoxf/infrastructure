@@ -67,4 +67,20 @@ public class KitForMath {
     public static long align(long v, int a) {
         return (v + a - 1) & -a;
     }
+
+    /**
+     * Returns the smallest power of two greater than or equal to {@code x}.
+     */
+    public static int ceilingPowerOfTwo(int x) {
+        // From Hacker's Delight, Chapter 3, Harry S. Warren Jr.
+        return 1 << -Integer.numberOfLeadingZeros(x - 1);
+    }
+
+    /**
+     * Returns the smallest power of two greater than or equal to {@code x}.
+     */
+    public static long ceilingPowerOfTwo(long x) {
+        // From Hacker's Delight, Chapter 3, Harry S. Warren Jr.
+        return 1L << -Long.numberOfLeadingZeros(x - 1);
+    }
 }

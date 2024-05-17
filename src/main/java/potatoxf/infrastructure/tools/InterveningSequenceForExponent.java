@@ -1,6 +1,6 @@
 package potatoxf.infrastructure.tools;
 
-import potatoxf.infrastructure.Arg;
+import potatoxf.api.support.Arg;
 
 import java.util.StringJoiner;
 

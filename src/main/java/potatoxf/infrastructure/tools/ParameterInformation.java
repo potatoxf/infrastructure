@@ -1,7 +1,7 @@
 package potatoxf.infrastructure.tools;
 
-import potatoxf.infrastructure.Arg;
-import potatoxf.infrastructure.Com;
+import potatoxf.api.support.Arg;
+import potatoxf.api.support.Com;
 
 import java.io.Serializable;
 import java.util.Locale;

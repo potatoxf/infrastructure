@@ -17,7 +17,9 @@ class AnyTypePairVarImpl<K, V> extends AnyTypePairValImpl<K, V> implements AnyTy
     }
 
     @Override
-    public void setValue(V value) {
+    public V setValue(V value) {
+        V old = this.value;
         this.value = value;
+        return old;
     }
 }

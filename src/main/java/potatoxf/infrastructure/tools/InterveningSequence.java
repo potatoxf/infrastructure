@@ -1,8 +1,8 @@
 package potatoxf.infrastructure.tools;
 
-import potatoxf.infrastructure.Log;
-import potatoxf.infrastructure.function.ThrowingCallable;
-import potatoxf.infrastructure.function.ThrowingRunnable;
+import potatoxf.api.support.Log;
+import potatoxf.api.function.ThrowingCallable;
+import potatoxf.api.function.ThrowingRunnable;
 
 /**
  * 提供 {@link Execution}，指示应间隔序列操作。
@@ -89,7 +89,7 @@ public interface InterveningSequence {
         long waitInterval = execution.next();
         while (waitInterval != InterveningSequence.STOP) {
             try {
-                func.execute();
+                func.runThrowing();
                 return true;
             } catch (Throwable e) {
                 waitInterval = execution.next();
@@ -115,7 +115,7 @@ public interface InterveningSequence {
         long waitInterval = execution.next();
         while (waitInterval != InterveningSequence.STOP) {
             try {
-                return func.execute();
+                return func.callThrowing();
             } catch (Throwable e) {
                 waitInterval = execution.next();
                 if (Log.isEnabledWarn()) {

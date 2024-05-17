@@ -1,6 +1,6 @@
 package potatoxf.infrastructure.tools;
 
-import potatoxf.infrastructure.Com;
+import potatoxf.api.support.Com;
 import potatoxf.infrastructure.utils.KitForMap;
 
 import java.io.Serializable;

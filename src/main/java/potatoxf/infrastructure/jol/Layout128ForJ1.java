@@ -1,6 +1,6 @@
 package potatoxf.infrastructure.jol;
 
-import potatoxf.infrastructure.Arg;
+import potatoxf.api.support.Arg;
 
 /**
  * 强制执行内存布局，通过填充写入计数来避免错误共享。
